@@ -1,0 +1,49 @@
+import { animateSelection, swayApples } from './animations.js';;
+export function bindToolbar(canvas) {
+  const colorPicker = document.getElementById('colorPicker');
+  const sizePicker = document.getElementById('sizePicker');
+  const drawBtn = document.getElementById('drawBtn');
+  const selectBtn = document.getElementById('selectBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  let pencil = new fabric.PencilBrush(canvas);
+
+  function clearActive() { [drawBtn, selectBtn].forEach(b => b.classList.remove('active')); }
+  function setDraw() {
+    canvas.isDrawingMode = true; canvas.selection = false;
+    canvas.forEachObject(o => { o.selectable = o.evented = false; });
+    pencil.color = colorPicker.value; pencil.width = +sizePicker.value; pencil.globalCompositeOperation = 'source-over';
+    canvas.freeDrawingBrush = pencil; canvas.defaultCursor = 'crosshair';
+    clearActive(); drawBtn.classList.add('active');
+  }
+  function setSelect() {
+    canvas.isDrawingMode = false; canvas.selection = true;
+    canvas.forEachObject(o => { o.selectable = o.evented = true; });
+    clearActive(); selectBtn.classList.add('active');
+  }
+  function deleteSel() {
+    const obj = canvas.getActiveObject(); if (!obj) return alert('Select something');
+    canvas.remove(obj.type==='activeSelection'?obj.getObjects():obj);
+    canvas.discardActiveObject(); canvas.requestRenderAll();
+  }
+
+  drawBtn.addEventListener('click', setDraw);
+  selectBtn.addEventListener('click', setSelect);
+  deleteBtn.addEventListener('click', deleteSel);
+  colorPicker.addEventListener('change', e => pencil.color = e.target.value);
+  sizePicker.addEventListener('input', e => pencil.width = +e.target.value);
+  undoBtn.addEventListener('click', () => canvas.history.undo());
+  redoBtn.addEventListener('click', () => canvas.history.redo());
+  redoBtn.addEventListener('click', () => new CustomEvent('redo'));
+
+  document.getElementById('animateBtn').addEventListener('click', () => {
+    const txt = prompt('Animate: birds or apples?')||'';
+    const sel = canvas.getActiveObjects(); if (!sel.length) return alert('Select items');
+    if (/birds?/i.test(txt)) animateSelection(canvas, sel);
+    else if (/apples?/i.test(txt)) swayApples(canvas, sel);
+    else alert('Only birds or apples');
+  });
+
+  setDraw();
+}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AniMuse</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h3>AniMuse</h3>
+  <div id="toolbar">
+    <label>Color <input type="color" id="colorPicker" value="#000000"></label>
+    <label>Size <input type="range" id="sizePicker" min="1" max="40" value="4"></label>
+    <div class="buttons">
+      <button id="drawBtn">Draw</button>
+      <button id="selectBtn">Select</button>
+      <button id="animateBtn">Animate</button>
+      <button id="deleteBtn">Delete</button>
+      <button id="undoBtn">Undo</button>
+      <button id="redoBtn">Redo</button>
+    </div>
+  </div>
+  <canvas id="canvas" width="900" height="600"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/fabric@6.4.3/dist/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
