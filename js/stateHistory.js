@@ -14,6 +14,7 @@ export class StateHistory {
         this.updateButtons();
     }
     saveState() {
+        console.log("Saving state");
         if (this.isBusy) return;
         const j = JSON.stringify(this.canvas.toJSON(['selectable','evented']));
         if (j === this.current) return;
@@ -27,20 +28,23 @@ export class StateHistory {
         this.updateButtons();
     }
     undo() {
+        console.log("Undoing state");
         if (!this.undoStack.length || this.isBusy) return;
         this.isBusy = true;
-        const prev = this.undoStack.pop();
         this.redoStack.push(this.current);
-        this.current = prev;
-        this.load(prev);
+        this.current = this.previous;
+        this.previous = this.undoStack.pop() || null;  // maybe null if empty now
+        this.load(this.current);
         this.isBusy = false;
         this.updateButtons();
     }
     redo() {
+        console.log("Redoing state");
         if (!this.redoStack.length || this.isBusy) return;
         this.isBusy = true;
         const next = this.redoStack.pop();
-        this.undoStack.push(this.current);
+        this.undoStack.push(this.previous);
+        this.previous = this.current;
         this.current = next;
         this.load(next);
         this.isBusy = false;

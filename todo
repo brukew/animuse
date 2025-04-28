@@ -1,0 +1,19 @@
+# To-Do
+
+## Bugs
+- Can't select or amend animations
+- undo and redo buggy asf
+  - [x] generally doesnt work
+  - [ ] doesnt work for animations since it saves static state
+
+## Features to add
+
+### General
+- side panel to show animation history and edit prompts
+- layering for animations and drawings
+  - interactions between animations (might mean having to redo all animations when there is a new one)
+- pause and play animation
+
+### LLM
+- LLM Auto animate
+  
