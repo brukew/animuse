@@ -43,8 +43,8 @@ export function bindToolbar(canvas) {
   redoBtn.addEventListener('click', () => new CustomEvent('redo'));
 
   document.getElementById('animateBtn').addEventListener('click', () => {
-    const txt = prompt('Animate: birds or apples?')||'';
     const sel = canvas.getActiveObjects(); if (!sel.length) return alert('Select items');
+    const txt = prompt('Animate: birds or apples?')||'';
     if (/birds?/i.test(txt)) animateSelection(canvas, sel);
     else if (/apples?/i.test(txt)) swayApples(canvas, sel);
     else alert('Only birds or apples');
