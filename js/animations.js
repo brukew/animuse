@@ -76,6 +76,14 @@ export function animateSelection(canvas, selected) {
       canvas.requestRenderAll();
       requestAnimationFrame(flock);
     })();
+    canvas.activeAnimations ||= [];
+    birds.forEach(bird => {
+        bird.id ||= fabric.Object.__uidCounter++;
+    });
+    canvas.activeAnimations.push({
+        type: 'birds',
+        ids: birds.map(b => b.id)
+    });
   }
   
   export function swayApples(canvas, objs) {
@@ -98,6 +106,15 @@ export function animateSelection(canvas, selected) {
         ease:   'sine.inOut',
         onUpdate: canvas.requestRenderAll.bind(canvas)
     });
+    });
+
+    canvas.activeAnimations ||= [];
+    objs.forEach(obj => {
+        obj.id ||= fabric.Object.__uidCounter++;
+    });
+    canvas.activeAnimations.push({
+        type: 'apples',
+        ids: objs.map(o => o.id)
     });
   }
   

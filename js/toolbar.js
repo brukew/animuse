@@ -45,8 +45,14 @@ export function bindToolbar(canvas) {
   document.getElementById('animateBtn').addEventListener('click', () => {
     const sel = canvas.getActiveObjects(); if (!sel.length) return alert('Select items');
     const txt = prompt('Animate: birds or apples?')||'';
-    if (/birds?/i.test(txt)) animateSelection(canvas, sel);
-    else if (/apples?/i.test(txt)) swayApples(canvas, sel);
+    if(/birds?/i.test(txt)){
+        animateSelection(canvas, sel);
+        setTimeout(() => canvas.history.saveState(), 20); // <-- save birds animation into history
+    }
+    else if (/apples?/i.test(txt)){
+        swayApples(canvas, sel);
+        setTimeout(() => canvas.history.saveState(), 20); // <-- save apples animation into history
+    }
     else alert('Only birds or apples');
   });
 
