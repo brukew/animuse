@@ -1,7 +1,8 @@
 // js/animations.js
-export function animateSelection(canvas, selected) {
+export function animateSelection(canvas, selected, strokes=[]) {
     // Based on original working implementation
     // 1) record positions and remove strokes
+    console.log("Animating selection: ", selected);
     const positions = selected.map(o => {
       const pt = o.getCenterPoint();
       return { x: pt.x, y: pt.y, color: o.stroke || '#222' };
@@ -39,10 +40,11 @@ export function animateSelection(canvas, selected) {
       const m = Math.hypot(v.x, v.y);
       if (m > MAX_SPEED) { v.x = v.x/m*MAX_SPEED; v.y = v.y/m*MAX_SPEED; }
     }
-  
-    positions.forEach(p => {
-      birds.push(createBirdAt(p.x, p.y, p.color));
-      vel.push({ x: Math.random()*2-1, y: Math.random()*2-1 });
+
+    positions.forEach((p, i) => {
+        const color = strokes[i] || p.color;
+        birds.push(createBirdAt(p.x, p.y, color));
+        vel.push({ x: Math.random()*2-1, y: Math.random()*2-1 });
     });
   
     (function flock() {
@@ -76,13 +78,17 @@ export function animateSelection(canvas, selected) {
       canvas.requestRenderAll();
       requestAnimationFrame(flock);
     })();
+
     canvas.activeAnimations ||= [];
-    birds.forEach(bird => {
+    birds.forEach((bird, idx) => {
         bird.id ||= fabric.Object.__uidCounter++;
     });
     canvas.activeAnimations.push({
         type: 'birds',
-        ids: birds.map(b => b.id)
+        data: birds.map((b, i) => ({
+            id: b.id,
+            color: strokes[i] || positions[i].color
+        }))
     });
   }
   
@@ -114,7 +120,9 @@ export function animateSelection(canvas, selected) {
     });
     canvas.activeAnimations.push({
         type: 'apples',
-        ids: objs.map(o => o.id)
+        data: objs.map(o => ({
+            id: o.id
+        }))
     });
   }
   

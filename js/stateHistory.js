@@ -65,6 +65,7 @@ export class StateHistory {
     }
 
     load(state) {
+        console.log("Loading state");
         const parsed = JSON.parse(state);
         const canvasState = parsed.canvasJSON;
         const animations = parsed.animations || [];
@@ -72,23 +73,31 @@ export class StateHistory {
         this.canvas.discardActiveObject();
         this.canvas.clear();
         this.canvas.activeAnimations = []; // Clear old animations
-        this.canvas.loadFromJSON(canvasState, () => {
-            this.canvas.requestRenderAll();
-            setTimeout(() => this.replayAnimations(animations), 0);
-        });
+        
+        this.canvas.loadFromJSON(canvasState)
+            .then(() => {
+                this.canvas.requestRenderAll();
+                this.replayAnimations(animations);
+            });
     }
 
     replayAnimations(animations) {
-        console.log("Loaded objects:", this.canvas.getObjects());
-        console.log("Trying to animate:", animations);
+        console.log("Replaying animations: ", animations);
         animations.forEach(anim => {
-            const objs = anim.ids.map(id => this.canvas.getObjects().find(o => o.id === id)).filter(Boolean);
-            if (anim.type === 'birds'){
-                animateSelection(this.canvas, objs);
+            console.log("Replaying animation: ", anim);
+            const objs = anim.data.map(entry => {
+                const obj = this.canvas.getObjects().find(o => o.id === entry.id);
+                return obj ? { object: obj, color: entry.color } : null;
+            }).filter(Boolean);
+    
+            if (anim.type === 'birds') {
+                animateSelection(this.canvas, objs.map(e => e.object), objs.map(e => e.color));
             }
-            else if (anim.type === 'apples') swayApples(this.canvas, objs);
+            else if (anim.type === 'apples') {
+                swayApples(this.canvas, objs.map(e => e.object));
+            }
         });
-    }
+    }    
 
     updateButtons() {
         document.getElementById('undoBtn').disabled = !this.undoStack.length;

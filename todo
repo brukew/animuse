@@ -5,7 +5,7 @@
 - undo and redo buggy asf
   - [x] generally doesnt work
   - [x] doesnt work for animations since it saves static state
-    - [ ] color doesnt save
+    - [x] color doesnt save
 - delete doesnt not work with multiple selected
 
 ## Features to add
