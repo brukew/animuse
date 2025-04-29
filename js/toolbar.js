@@ -23,13 +23,13 @@ export function bindToolbar(canvas) {
     clearActive(); selectBtn.classList.add('active');
   }
   function deleteSel() {
-    const obj = canvas.getActiveObject();
-    if (!obj) return alert('Select something');
-  
-    canvas.remove(obj.type === 'activeSelection' ? obj.getObjects() : obj);
+    const objs = canvas.getActiveObjects()
+
+    if (objs.length < 1) return alert('Select something');
+
+    canvas.remove(...objs);
     canvas.discardActiveObject();
     canvas.requestRenderAll();
-  
     setTimeout(() => canvas.history.saveState(), 20); // <-- save deletion into history
   }
 
