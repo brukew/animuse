@@ -7,9 +7,11 @@ export function bindToolbar(canvas) {
   const deleteBtn = document.getElementById('deleteBtn');
   const undoBtn = document.getElementById('undoBtn');
   const redoBtn = document.getElementById('redoBtn');
+  const pauseBtn = document.getElementById('redoBtn');
   let pencil = new fabric.PencilBrush(canvas);
 
   function clearActive() { [drawBtn, selectBtn].forEach(b => b.classList.remove('active')); }
+  
   function setDraw() {
     canvas.isDrawingMode = true; canvas.selection = false;
     canvas.forEachObject(o => { o.selectable = o.evented = false; });
@@ -17,11 +19,13 @@ export function bindToolbar(canvas) {
     canvas.freeDrawingBrush = pencil; canvas.defaultCursor = 'crosshair';
     clearActive(); drawBtn.classList.add('active');
   }
+
   function setSelect() {
     canvas.isDrawingMode = false; canvas.selection = true;
     canvas.forEachObject(o => { o.selectable = o.evented = true; });
     clearActive(); selectBtn.classList.add('active');
   }
+
   function deleteSel() {
     const objs = canvas.getActiveObjects()
 
@@ -55,6 +59,6 @@ export function bindToolbar(canvas) {
     }
     else alert('Only birds or apples');
   });
-
+  canvas.discardActiveObject();
   setDraw();
 }
