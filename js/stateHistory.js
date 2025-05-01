@@ -1,4 +1,5 @@
-import { animateSelection, swayApples } from './animations.js'; // Needed to replay
+import { renderAnimationPanel } from './animationPanel.js';
+import { animate } from './animations.js';
 
 export class StateHistory {
     constructor(canvas) {
@@ -78,26 +79,24 @@ export class StateHistory {
             .then(() => {
                 this.canvas.requestRenderAll();
                 this.replayAnimations(animations);
-            });
+                renderAnimationPanel(this.canvas);
+            })
     }
 
     replayAnimations(animations) {
-        console.log("Replaying animations: ", animations);
+        console.log("Replaying animations:", animations);
+      
         animations.forEach(anim => {
-            console.log("Replaying animation: ", anim);
-            const objs = anim.data.map(entry => {
-                const obj = this.canvas.getObjects().find(o => o.id === entry.id);
-                return obj ? { object: obj, color: entry.color } : null;
-            }).filter(Boolean);
-    
-            if (anim.type === 'birds') {
-                animateSelection(this.canvas, objs.map(e => e.object), objs.map(e => e.color));
-            }
-            else if (anim.type === 'apples') {
-                swayApples(this.canvas, objs.map(e => e.object));
-            }
+          const objs = anim.data.map(entry =>
+            this.canvas.getObjects().find(o => o.id === entry.id)
+          ).filter(Boolean);
+      
+          if (!objs.length) return;
+      
+          animate(anim.prompt || anim.type, this.canvas, objs, { data: anim.data }, { save: false });
         });
-    }    
+      }
+        
 
     updateButtons() {
         document.getElementById('undoBtn').disabled = !this.undoStack.length;

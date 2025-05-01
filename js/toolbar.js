@@ -1,4 +1,5 @@
-import { animateSelection, swayApples } from './animations.js';;
+import { animate } from './animations.js';;
+
 export function bindToolbar(canvas) {
   const colorPicker = document.getElementById('colorPicker');
   const sizePicker = document.getElementById('sizePicker');
@@ -7,7 +8,9 @@ export function bindToolbar(canvas) {
   const deleteBtn = document.getElementById('deleteBtn');
   const undoBtn = document.getElementById('undoBtn');
   const redoBtn = document.getElementById('redoBtn');
-  const pauseBtn = document.getElementById('redoBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+
+  let animationsPaused = false;
   let pencil = new fabric.PencilBrush(canvas);
 
   function clearActive() { [drawBtn, selectBtn].forEach(b => b.classList.remove('active')); }
@@ -44,21 +47,27 @@ export function bindToolbar(canvas) {
   sizePicker.addEventListener('input', e => pencil.width = +e.target.value);
   undoBtn.addEventListener('click', () => canvas.history.undo());
   redoBtn.addEventListener('click', () => canvas.history.redo());
-  redoBtn.addEventListener('click', () => new CustomEvent('redo'));
+
+  pauseBtn.addEventListener('click', () => {
+    animationsPaused = !animationsPaused;
+    pauseBtn.textContent = animationsPaused ? "Resume" : "Pause";
+  
+    canvas.getObjects().forEach(o => {
+      if (o.isAnimated && o.tween) {
+        animationsPaused ? o.tween.pause() : o.tween.resume();
+      }
+    });
+  });
 
   document.getElementById('animateBtn').addEventListener('click', () => {
-    const sel = canvas.getActiveObjects(); if (!sel.length) return alert('Select items');
-    const txt = prompt('Animate: birds or apples?')||'';
-    if(/birds?/i.test(txt)){
-        animateSelection(canvas, sel);
-        setTimeout(() => canvas.history.saveState(), 20); // <-- save birds animation into history
-    }
-    else if (/apples?/i.test(txt)){
-        swayApples(canvas, sel);
-        setTimeout(() => canvas.history.saveState(), 20); // <-- save apples animation into history
-    }
-    else alert('Only birds or apples');
+    const sel = canvas.getActiveObjects();
+    if (!sel.length) return alert('Select items');
+  
+    const rawPrompt = prompt('Animate: birds or apples?') || '';
+    animate(rawPrompt, canvas, sel)
+    
   });
+  
   canvas.discardActiveObject();
   setDraw();
 }
