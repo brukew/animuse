@@ -1,0 +1,90 @@
+/* animationPanel.css */
+
+.animation-entry {
+    background: white;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .entry-title-text {
+    font-weight: bold;
+    font-size: 15px;
+    flex-grow: 1;
+  }
+  
+  .entry-meta {
+    font-size: 13px;
+    color: #666;
+  }
+  
+  .edit-btn {
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  .entry-controls {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  
+  .select-btn,
+  .delete-btn,
+  .edit-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    background: #f9f9f9;
+    cursor: pointer;
+  }
+  
+  .select-btn:hover,
+  .delete-btn:hover,
+  .edit-btn:hover {
+    background: #eee;
+  }
+  
+  .modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+  }
+  
+  .modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  

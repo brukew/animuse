@@ -21,7 +21,7 @@
 - layering for animations and drawings
   - interactions between animations (might mean having to redo all animations when there is a new one)
 - [x]pause and play animation
-  - [ ] fix bug with moving apples on pause
+  - [ ] fix bug with moving apples on pause (align pause / resume with selection cleared)
 
 ### LLM
 - LLM Auto animate
