@@ -3,12 +3,16 @@ import { Toolbar } from './toolbar.js';
 import { enableGestures } from './gestures.js';
 
 fabric.Object.prototype.toObject = (function(toObject) {
-    return function(propertiesToInclude) {
-      const original = toObject.call(this, propertiesToInclude);
-      original.id = this.id;
-      return original;
-    };
-  })(fabric.Object.prototype.toObject);
+  return function(propertiesToInclude = []) {
+    propertiesToInclude = Array.isArray(propertiesToInclude)
+      ? propertiesToInclude
+      : [];
+
+    const original = toObject.call(this, propertiesToInclude);
+    original.id = this.id;
+    return original;
+  };
+})(fabric.Object.prototype.toObject);
   
 fabric.Object.__uidCounter = 1;
 

@@ -1,17 +1,22 @@
 import { renderAnimationPanel } from "./animationPanel.js";
 
-export const animationHandlers = {
-  birds: animateBirds,
-  apples: swayApples
-};
+export function redrawObject(original) {
+  return new Promise((resolve) => {
+    original.clone((cloned) => {
+      cloned.id = original.id;
+      cloned.set({
+        selectable: true,
+        evented: true,
+        objectCaching: false
+      });
+      resolve(cloned);
+    }, ['id']); // <- include only native string properties you care about
+  });
+}
 
-export function animate(prompt, canvas, selected, options = {}, { save = true } = {}) {
-  const key = Object.keys(animationHandlers).find(k => new RegExp(k, 'i').test(prompt));
-  if (!key) return alert('Only birds or apples are supported.');
 
-  canvas.activeAnimations ||= [];
-
-  const reanimate = options.update && (options.data?.length !== 0);
+export async function prepareRedraw(canvas, selected, options, key) {
+  const reanimate = options.update && options.data?.length;
   let all_changed = false;
   let animId = options.id || `${key}_${Date.now()}`;
 
@@ -21,11 +26,8 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
     if (existingIndex !== -1) {
       const anim = canvas.activeAnimations[existingIndex];
 
-      const remainingData = anim.data.filter(d =>
-        !options.data.some(updated => updated.id === d.id)
-      );
-
-      console.log('Remaining data:', remainingData);
+      const reanimatedIds = new Set(options.data.map(d => d.id));
+      const remainingData = anim.data.filter(d => !reanimatedIds.has(d.id));
 
       if (remainingData.length === 0) {
         canvas.activeAnimations.splice(existingIndex, 1);
@@ -34,43 +36,73 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
         canvas.activeAnimations[existingIndex].data = remainingData;
       }
 
-      // reuse ID if full reanimation, otherwise assign new one
+      options.data.forEach(updated => updated.cleanup?.());
+
+      // Use previous ID if fully replaced, otherwise make a new one
       animId = all_changed ? options.id : `${key}_${Date.now()}`;
     }
   }
 
-  const animateFunc = animationHandlers[key];
-  const result = animateFunc(canvas, selected, options);
-  const { objects, data } = result;
+  const redrawn = await Promise.all(selected.map(o => redrawObject(o)));
+  selected.forEach(o => canvas.remove(o));
+  redrawn.forEach(o => canvas.add(o));
+  canvas.requestRenderAll();
 
-  objects.forEach((obj, i) => {
-    obj.id ||= fabric.Object.__uidCounter++;
-  });
-
-  data.forEach((entry, i) => {
-    entry.id ||= objects[i]?.id;
-  });
-
-  const animationEntry = {
-    id: animId,
-    type: key,
-    name: options.name || `${key} animation`,
-    prompt,
-    data
-  };
-
-  console.log('Animation entry:', animationEntry);
-  console.log('Reanimate:', reanimate);
-  console.log('All changed:', all_changed);
-
-  canvas.activeAnimations.push(animationEntry);
-  renderAnimationPanel(canvas);
-
-  if (save && objects.length > 0) {
-    setTimeout(() => canvas.history.saveState(), 20);
-  }
+  return { redrawn, animId, all_changed };
 }
 
+export const animationHandlers = {
+  birds: animateBirds,
+  apples: swayApples
+};
+
+export function animate(prompt, canvas, selected, options = {}, { save = true } = {}) {
+  const key = Object.keys(animationHandlers).find(k => new RegExp(k, 'i').test(prompt));
+  if (!key) {
+    alert('Only birds or apples are supported.');
+    return Promise.resolve(); // still return a Promise
+  }
+
+  return prepareRedraw(canvas, selected, options, key).then(({ redrawn, animId, all_changed }) => {
+    const animateFunc = animationHandlers[key];
+    return animateFunc(canvas, redrawn, options).then(result => {
+      const { objects, data, cleanup } = result;
+
+      objects.forEach((obj, i) => {
+        obj.id ||= fabric.Object.__uidCounter++;
+        obj.metadata = {
+          animationId: animId,
+          animationType: key,
+          prompt,
+          custom: data[i] || {}
+        };
+      });
+
+      console.log('Animation entry:', animationEntry);
+      console.log('Reanimate:', reanimate);
+      console.log('All changed:', all_changed);
+
+      data.forEach((entry, i) => {
+        entry.id ||= objects[i]?.id;
+      });
+
+      canvas.activeAnimations ||= [];
+      canvas.activeAnimations.push({
+        id: animId,
+        type: key,
+        prompt,
+        data,
+        cleanup
+      });
+
+      return renderAnimationPanel(canvas).then(() => {
+        if (save && objects.length > 0) {
+          setTimeout(() => canvas.history.saveState(), 20);
+        }
+      });
+    });
+  });
+}
 
 export function animateBirds(canvas, selected, { data = [] } = {}) {
   const positions = selected.map(o => {
@@ -212,7 +244,7 @@ export function animateBirds(canvas, selected, { data = [] } = {}) {
   }
 
   setupFlocking(birds);
-  
+
   return {
     objects: birds,
     data: birds.map((b, i) => ({
@@ -267,6 +299,6 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
     objects: objs,
     data: objs.map((b, i) => ({
       id: b.id, // will be backfilled in `animate()` if missing
-    }))
+    })),
   };
 }
