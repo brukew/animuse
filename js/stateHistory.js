@@ -17,7 +17,7 @@ export class StateHistory {
         this.previous = this.current = j;
         this.updateButtons();
     }
-0
+
     saveState() {
         console.log("Saving state");
         if (this.isBusy) return;

@@ -1,5 +1,5 @@
 import { setupCanvas } from './canvasSetup.js';
-import { bindToolbar } from './toolbar.js';
+import { Toolbar } from './toolbar.js';
 import { enableGestures } from './gestures.js';
 
 fabric.Object.prototype.toObject = (function(toObject) {
@@ -12,8 +12,9 @@ fabric.Object.prototype.toObject = (function(toObject) {
   
 fabric.Object.__uidCounter = 1;
 
+
 window.addEventListener('load', () => {
   const canvas = setupCanvas('canvas');
-  bindToolbar(canvas);
+  const toolbar = new Toolbar(canvas);
   enableGestures(canvas);
 });

@@ -1,3 +1,6 @@
+import { deleteSel } from './toolbar.js';
+import { animate } from './animations.js';
+
 export function createAnimationEntry(anim, canvas) {
     const entry = document.createElement('div');
     entry.className = 'animation-entry';
@@ -33,6 +36,11 @@ export function createAnimationEntry(anim, canvas) {
   
     controls.append(selectBtn, deleteBtn, editBtn);
     entry.append(header, controls);
+
+    // Delete logic
+    deleteBtn.addEventListener('click', () => {
+        deleteAnimationBySelection(anim, canvas);
+      });
   
     // Select logic
     selectBtn.addEventListener('click', () => {
@@ -60,6 +68,16 @@ export function createAnimationEntry(anim, canvas) {
       const save = () => {
         anim.prompt = input.value.trim();
         titleText.textContent = anim.prompt;
+
+        const ids = anim.data.map(d => d.id);
+        const objs = canvas.getObjects().filter(o => ids.includes(o.id));
+
+        animate(anim.prompt, canvas, objs, {
+            id: anim.id,
+            data: anim.data,
+            update: true
+          }, { save: true });
+          
         modal.classList.add("hidden");
         saveBtn.removeEventListener("click", save);
         cancelBtn.removeEventListener("click", cancel);
@@ -86,5 +104,20 @@ export function createAnimationEntry(anim, canvas) {
       const entry = createAnimationEntry(anim, canvas);
       panel.appendChild(entry);
     });
+  }
+  
+  function deleteAnimationBySelection(anim, canvas) {
+    const ids = anim.data.map(d => d.id);
+    const matching = canvas.getObjects().filter(o => ids.includes(o.id));
+  
+    if (matching.length === 1) {
+      canvas.setActiveObject(matching[0]);
+    } else if (matching.length > 1) {
+      const sel = new fabric.ActiveSelection(matching, { canvas });
+      canvas.setActiveObject(sel);
+    }
+  
+    canvas.requestRenderAll();
+    setTimeout(() => deleteSel(canvas), 20);
   }
   

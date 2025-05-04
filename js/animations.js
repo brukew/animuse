@@ -9,34 +9,68 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
   const key = Object.keys(animationHandlers).find(k => new RegExp(k, 'i').test(prompt));
   if (!key) return alert('Only birds or apples are supported.');
 
-  const animateFunc = animationHandlers[key];
-  const result = animateFunc(canvas, selected, options); // now returns { objects, data }
+  canvas.activeAnimations ||= [];
 
+  const reanimate = options.update && (options.data?.length !== 0);
+  let all_changed = false;
+  let animId = options.id || `${key}_${Date.now()}`;
+
+  if (reanimate) {
+    const existingIndex = canvas.activeAnimations.findIndex(a => a.id === options.id);
+
+    if (existingIndex !== -1) {
+      const anim = canvas.activeAnimations[existingIndex];
+
+      const remainingData = anim.data.filter(d =>
+        !options.data.some(updated => updated.id === d.id)
+      );
+
+      console.log('Remaining data:', remainingData);
+
+      if (remainingData.length === 0) {
+        canvas.activeAnimations.splice(existingIndex, 1);
+        all_changed = true;
+      } else if (remainingData.length !== anim.data.length) {
+        canvas.activeAnimations[existingIndex].data = remainingData;
+      }
+
+      // reuse ID if full reanimation, otherwise assign new one
+      animId = all_changed ? options.id : `${key}_${Date.now()}`;
+    }
+  }
+
+  const animateFunc = animationHandlers[key];
+  const result = animateFunc(canvas, selected, options);
   const { objects, data } = result;
 
-  objects.forEach(obj => {
+  objects.forEach((obj, i) => {
     obj.id ||= fabric.Object.__uidCounter++;
   });
 
-  // Apply generated IDs to metadata entries if missing
   data.forEach((entry, i) => {
     entry.id ||= objects[i]?.id;
   });
 
-  canvas.activeAnimations ||= [];
-  canvas.activeAnimations.push({
-    id: `${key}_${Date.now()}`,
+  const animationEntry = {
+    id: animId,
     type: key,
+    name: options.name || `${key} animation`,
     prompt,
     data
-  });
+  };
 
+  console.log('Animation entry:', animationEntry);
+  console.log('Reanimate:', reanimate);
+  console.log('All changed:', all_changed);
+
+  canvas.activeAnimations.push(animationEntry);
   renderAnimationPanel(canvas);
 
   if (save && objects.length > 0) {
     setTimeout(() => canvas.history.saveState(), 20);
   }
 }
+
 
 export function animateBirds(canvas, selected, { data = [] } = {}) {
   const positions = selected.map(o => {
@@ -178,10 +212,6 @@ export function animateBirds(canvas, selected, { data = [] } = {}) {
   }
 
   setupFlocking(birds);
-  
-  birds.forEach(b => {
-    b.id ||= fabric.Object.__uidCounter++;
-  });
   
   return {
     objects: birds,

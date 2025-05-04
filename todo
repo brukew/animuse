@@ -15,16 +15,28 @@
 ### General
 - [x] side panel to show animation history
 - [x] select objects upon clikcing entry
-- [ ] edit prompts 
+- [x] edit prompts 
 - [ ] edit names of animated objects
-- [ ] fix bug where re animating an animated object doesnt remove previous entry 
+- [x] fix bug where re animating an animated object doesnt remove previous entry 
+  - [x] figure out reanimation and what i want from it fr - look at ids.
+- [ ] filter animatiosn by recent vs date
+- [ ] all animations may need to wipe the object and redraw but only keep the stroke data
+
 - layering for animations and drawings
   - interactions between animations (might mean having to redo all animations when there is a new one)
+  
 - [x]pause and play animation
   - [ ] fix bug with moving apples on pause (align pause / resume with selection cleared)
 
+- [ ] add directions in beginning
+  - [ ] hints thrughout page + question mark that expands into directions again
+
 ### LLM
 - LLM Auto animate
+  - iteration tool
+  - aniamtion tool
+  - interaction tool
 - Need to tell it to be mindful about animated items when being moved, color changed, deleted, and such
   - maybe pass in apples and birds as examples
-  
+- be able to color in objects/group as one object (i.e. a house with multiple strokes would be one object)
+  - objectGroup vs animationGroup vs interactionGroup

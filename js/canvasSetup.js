@@ -1,4 +1,5 @@
 import { StateHistory } from './stateHistory.js';
+import { renderAnimationPanel } from './animationPanel.js';
 
 export function setupCanvas(id) {
   const canvas = new fabric.Canvas(id, { preserveObjectStacking: true });
@@ -23,6 +24,28 @@ export function setupCanvas(id) {
     });
   
     setTimeout(() => canvas.history.saveState(), 20);
+  });
+
+  canvas.on('object:removed', () => {
+    let changed = false;
+  
+    canvas.activeAnimations = (canvas.activeAnimations || []).filter(anim => {
+      const remainingData = anim.data.filter(d =>
+        canvas.getObjects().some(o => o.id === d.id)
+      );
+  
+      if (remainingData.length !== anim.data.length) {
+        anim.data = remainingData;
+        changed = true;
+      }
+  
+      // If none left, remove the animation entirely
+      return remainingData.length > 0;
+    });
+  
+    if (changed) {
+      renderAnimationPanel(canvas);
+    }
   });
 
   canvas.on('selection:created', () => {
