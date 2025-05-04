@@ -19,7 +19,7 @@
 - [ ] edit names of animated objects
 - [x] fix bug where re animating an animated object doesnt remove previous entry 
   - [x] figure out reanimation and what i want from it fr - look at ids.
-- [ ] filter animatiosn by recent vs date
+- [ ] filter animatiosn by recent vs date vs order on canvas
 - [ ] all animations may need to wipe the object and redraw but only keep the stroke data
 
 - layering for animations and drawings

@@ -38,19 +38,28 @@ export class Toolbar {
       const sel = canvas.getActiveObjects();
       if (!sel.length) return alert('Select items');
     
-      const ids = sel.map(o => o.id);  // ✅ FIX: use `sel`, not undefined `selected`
+      const ids = sel.map(o => o.id);
+
       const existingAnim = canvas.activeAnimations?.find(a =>
-        a.data.every(d => ids.includes(d.id)) && a.data.length === ids.length
+        a.data.some(d => ids.includes(d.id))
       );
         
       if (existingAnim) {
         const confirmMsg = `These objects are already animated with: "${existingAnim.prompt}"\n\nDo you want to reanimate them with the new prompt?`;
         const confirmed = confirm(confirmMsg);
         if (!confirmed) return;
+        const rawPrompt = prompt('Animate: birds or apples?') || '';
+        animate(rawPrompt, canvas, sel, {
+          update: true,
+          id: existingAnim.id,
+          data: existingAnim.data
+        }, { save: true });
       }
 
-      const rawPrompt = prompt('Animate: birds or apples?') || '';
-      animate(rawPrompt, canvas, sel);
+      else{
+        const rawPrompt = prompt('Animate: birds or apples?') || '';
+        animate(rawPrompt, canvas, sel);
+      }
     });
 
     this.colorPicker.addEventListener('change', e => pencil.color = e.target.value);

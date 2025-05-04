@@ -21,9 +21,8 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
     if (existingIndex !== -1) {
       const anim = canvas.activeAnimations[existingIndex];
 
-      const remainingData = anim.data.filter(d =>
-        !options.data.some(updated => updated.id === d.id)
-      );
+      const selectedIds = new Set(selected.map(o => o.id));
+      const remainingData = anim.data.filter(d => !selectedIds.has(d.id));
 
       console.log('Remaining data:', remainingData);
 
