@@ -87,13 +87,76 @@ export class StateHistory {
         console.log("Replaying animations:", animations);
       
         animations.forEach(anim => {
-          const objs = anim.data.map(entry =>
-            this.canvas.getObjects().find(o => o.id === entry.id)
-          ).filter(Boolean);
-      
-          if (!objs.length) return;
-      
-          animate(anim.prompt || anim.type, this.canvas, objs, { data: anim.data }, { save: false });
+          // When replaying animations:
+          // 1. For group animations, we should find the animation object directly or reconstruct it
+          // 2. For regular animations, find the individual objects
+          
+          let objsToAnimate = [];
+          
+          // First, try to find animation objects directly by ID
+          const directMatches = this.canvas.getObjects().filter(o => 
+            anim.data.some(d => d.id === o.id)
+          );
+          
+          if (directMatches.length > 0) {
+            // We found the exact animated objects, use them directly
+            console.log(`Found ${directMatches.length} direct matches for animation ${anim.id}`);
+            objsToAnimate = directMatches;
+          } else {
+            console.log(`No direct matches for animation ${anim.id}, looking for group members...`);
+            
+            // Check for group members or recreate groups if needed
+            const groupData = anim.data.filter(d => d.isGroup && Array.isArray(d.memberIds));
+            const regularData = anim.data.filter(d => !d.isGroup || !Array.isArray(d.memberIds));
+            
+            // Add non-group objects
+            const regularObjects = regularData
+              .map(entry => this.canvas.getObjects().find(o => o.id === entry.id))
+              .filter(Boolean);
+              
+            objsToAnimate.push(...regularObjects);
+            
+            // Handle groups
+            for (const groupEntry of groupData) {
+              // Try to find the object that represents this group
+              const groupObj = this.canvas.getObjects().find(o => 
+                o.id === groupEntry.id || 
+                (o.groupId === groupEntry.groupId && o.isGroupRepresentative)
+              );
+              
+              if (groupObj) {
+                // The group object already exists
+                objsToAnimate.push(groupObj);
+              } else if (groupEntry.memberIds && groupEntry.memberIds.length > 0) {
+                // Try to find the member objects to recreate the group
+                const memberObjs = groupEntry.memberIds
+                  .map(id => this.canvas.getObjects().find(o => o.id === id))
+                  .filter(Boolean);
+                  
+                if (memberObjs.length > 0) {
+                  // Group these objects together first, then animate them
+                  memberObjs.forEach(obj => {
+                    obj.groupId = groupEntry.groupId || `group_${Date.now()}`;
+                  });
+                  
+                  objsToAnimate.push(...memberObjs);
+                }
+              }
+            }
+          }
+          
+          console.log(`Found total ${objsToAnimate.length} objects to animate for ${anim.id}`);
+          
+          if (!objsToAnimate.length) {
+            console.warn(`No objects found to replay animation ${anim.id}`);
+            return;
+          }
+          
+          // Replay the animation with the found objects
+          animate(anim.prompt || anim.type, this.canvas, objsToAnimate, { 
+            data: anim.data,
+            id: anim.id
+          }, { save: false });
         });
       }
         

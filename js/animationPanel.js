@@ -13,9 +13,22 @@ export function createAnimationEntry(anim, canvas) {
     titleText.className = 'entry-title-text';
     titleText.textContent = anim.prompt || `(${anim.type})`;
   
+    // Calculate the actual object count, considering grouped objects
+    let objectCount = 0;
+    
+    anim.data.forEach(entry => {
+      if (entry.isGroup && Array.isArray(entry.memberIds)) {
+        // Count each group as 1 object since we're treating groups as single units
+        objectCount += 1;
+      } else {
+        // Count individual objects
+        objectCount += 1;
+      }
+    });
+    
     const meta = document.createElement('span');
     meta.className = 'entry-meta';
-    meta.textContent = `${anim.data.length} object${anim.data.length !== 1 ? 's' : ''}`;
+    meta.textContent = `${objectCount} object${objectCount !== 1 ? 's' : ''}`;
   
     header.append(titleText, meta);
   
@@ -44,14 +57,46 @@ export function createAnimationEntry(anim, canvas) {
   
     // Select logic
     selectBtn.addEventListener('click', () => {
-      const ids = anim.data.map(d => d.id);
-      const matching = canvas.getObjects().filter(o => ids.includes(o.id));
+      console.log('Selecting animation with data:', anim.data);
+      
+      // Collect all IDs to select, including those in groups
+      const allIds = new Set();
+      const groupIds = new Set();
+      
+      // Process all data entries to find objects and groups
+      anim.data.forEach(d => {
+        allIds.add(d.id);
+        if (d.groupId) {
+          groupIds.add(d.groupId);
+        }
+      });
+      
+      // Find objects that match the animation data
+      const matching = canvas.getObjects().filter(o => {
+        // Direct ID match
+        if (allIds.has(o.id)) {
+          return true;
+        }
+        
+        // Group ID match - select all objects in the same groups
+        if (o.groupId && groupIds.has(o.groupId)) {
+          return true;
+        }
+        
+        return false;
+      });
+      
+      console.log(`Found ${matching.length} objects to select`);
+      
       if (matching.length > 1) {
         const sel = new fabric.ActiveSelection(matching, { canvas });
         canvas.setActiveObject(sel);
       } else if (matching.length === 1) {
         canvas.setActiveObject(matching[0]);
+      } else {
+        console.warn('No objects found to select for animation:', anim.id);
       }
+      
       canvas.requestRenderAll();
     });
   
@@ -69,8 +114,32 @@ export function createAnimationEntry(anim, canvas) {
         anim.prompt = input.value.trim();
         titleText.textContent = anim.prompt;
 
-        const ids = anim.data.map(d => d.id);
-        const objs = canvas.getObjects().filter(o => ids.includes(o.id));
+        // Collect all IDs to select, including those in groups
+        const allIds = new Set();
+        const groupIds = new Set();
+        
+        // Process all data entries to find objects and groups
+        anim.data.forEach(d => {
+          allIds.add(d.id);
+          if (d.groupId) {
+            groupIds.add(d.groupId);
+          }
+        });
+        
+        // Find objects that match the animation data
+        const objs = canvas.getObjects().filter(o => {
+          // Direct ID match
+          if (allIds.has(o.id)) {
+            return true;
+          }
+          
+          // Group ID match - select all objects in the same groups
+          if (o.groupId && groupIds.has(o.groupId)) {
+            return true;
+          }
+          
+          return false;
+        });
 
         animate(anim.prompt, canvas, objs, {
             id: anim.id,
@@ -107,9 +176,45 @@ export function createAnimationEntry(anim, canvas) {
   }
   
   function deleteAnimationBySelection(anim, canvas) {
-    const ids = anim.data.map(d => d.id);
-    const matching = canvas.getObjects().filter(o => ids.includes(o.id));
+    console.log('Deleting animation:', anim);
+    
+    // Collect all IDs to select, including those in groups
+    const allIds = new Set();
+    const groupIds = new Set();
+    
+    // Process all data entries to find objects and groups
+    anim.data.forEach(d => {
+      allIds.add(d.id);
+      if (d.groupId) {
+        groupIds.add(d.groupId);
+      }
+    });
+    
+    // Find objects that match the animation data
+    const matching = canvas.getObjects().filter(o => {
+      // Direct ID match
+      if (allIds.has(o.id)) {
+        return true;
+      }
+      
+      // Group ID match - select all objects in the same groups
+      if (o.groupId && groupIds.has(o.groupId)) {
+        return true;
+      }
+      
+      return false;
+    });
+    
+    console.log(`Found ${matching.length} objects to delete`);
+    
+    if (matching.length === 0) {
+      // If no objects found, just remove the animation entry
+      canvas.activeAnimations = (canvas.activeAnimations || []).filter(a => a.id !== anim.id);
+      renderAnimationPanel(canvas);
+      return;
+    }
   
+    // Select the objects to delete
     if (matching.length === 1) {
       canvas.setActiveObject(matching[0]);
     } else if (matching.length > 1) {
@@ -117,7 +222,14 @@ export function createAnimationEntry(anim, canvas) {
       canvas.setActiveObject(sel);
     }
   
+    // Delete the objects
     canvas.requestRenderAll();
-    setTimeout(() => deleteSel(canvas), 20);
+    setTimeout(() => {
+      deleteSel(canvas);
+      
+      // Make sure the animation is removed from the list
+      canvas.activeAnimations = (canvas.activeAnimations || []).filter(a => a.id !== anim.id);
+      renderAnimationPanel(canvas);
+    }, 20);
   }
   
