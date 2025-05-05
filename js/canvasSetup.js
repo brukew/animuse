@@ -264,6 +264,13 @@ export function setupCanvas(id) {
   });
 
   canvas.on('selection:cleared', () => {
+    // Skip processing if we're in the middle of shift-selecting groups
+    // This prevents objects from being unexpectedly deselected
+    if (canvas._skipSelectionCleared) {
+      console.log('Skipping selection:cleared event due to shift-select operation');
+      return;
+    }
+    
     // Resume animations for objects that were in selection
     // BUT only if global animations aren't paused
     const toolbar = window.toolbar; // Access the toolbar through the global reference
@@ -306,46 +313,125 @@ export function setupCanvas(id) {
     }
   });
   
-  // Handle clicking on grouped objects while preserving shift-select
+  // Enhanced handling of clicking on grouped objects while preserving shift-select
+  let shiftGroupSelectionInProgress = false;
+  
+  // Prevent default behavior for mouse:down on objects when shift is pressed
+  canvas.on('mouse:down', (e) => {
+    if (e.e.shiftKey && e.target) {
+      // If the user is holding shift and clicking on ANY object, we want to handle selection specially
+      e.e.preventDefault();
+      
+      // For groups, we'll handle this in our own mouse:down handler below
+      if (e.target.groupId) {
+        shiftGroupSelectionInProgress = true;
+      }
+    }
+  }, { priority: 999 }); // Make this run before Fabric's handlers
+  
+  // Our custom handler for selecting groups
   canvas.on('mouse:down', (e) => {
     const clicked = e.target;
+    const isShiftPressed = e.e.shiftKey;
+    
+    // If we're clicking on an object that's part of a group
     if (clicked?.groupId) {
       const groupId = clicked.groupId;
       
       // Find all objects with the same group ID
       const grouped = canvas.getObjects().filter(o => o.groupId === groupId);
       
-      // Only create a selection if there are multiple objects in the group
+      // Only handle if there are multiple objects in the group
       if (grouped.length > 1) {
-        // Preserve multi-selection with shift key
-        const isShiftPressed = e.e.shiftKey;
-        
-        if (isShiftPressed && canvas.getActiveObject() && canvas.getActiveObject().type === 'activeSelection') {
+        // If shift is pressed and there's an active selection
+        if (isShiftPressed && canvas.getActiveObject()) {
           // Get current selection
           const currentSelection = canvas.getActiveObject();
-          const currentObjects = currentSelection.getObjects();
           
-          // Check if any object from this group is already selected
-          const isGroupSelected = currentObjects.some(o => o.groupId === groupId);
+          // Extract objects from the active selection
+          let selectedObjects = [];
           
-          if (!isGroupSelected) {
-            // Add this group to the existing selection
-            const newSelection = new fabric.ActiveSelection([...currentObjects, ...grouped], { canvas });
+          if (currentSelection.type === 'activeSelection') {
+            // For activeSelection, we need to get the child objects
+            selectedObjects = currentSelection.getObjects();
+            console.log('Current selection is a group with', selectedObjects.length, 'objects');
+          } else {
+            // For a single object
+            selectedObjects = [currentSelection];
+            console.log('Current selection is a single object');
+          }
+          
+          // Handle case where the selectedObjects themselves could contain activeSelection objects
+          // This is needed to fix the case where a single object selection is actually an ActiveSelection
+          const flattenedSelectedObjects = [];
+          selectedObjects.forEach(obj => {
+            if (obj.type === 'activeSelection') {
+              // If we have an activeSelection, get its child objects
+              const nestedObjects = obj.getObjects();
+              console.log('Found nested selection with', nestedObjects.length, 'objects');
+              flattenedSelectedObjects.push(...nestedObjects);
+            } else {
+              flattenedSelectedObjects.push(obj);
+            }
+          });
+          
+          console.log('Flattened selection has', flattenedSelectedObjects.length, 'objects');
+          
+          if (isShiftPressed && clicked?.groupId) {
+            const groupId = clicked.groupId;
+            const grouped = canvas.getObjects().filter(o => o.groupId === groupId);
+          
+            const currentSelection = canvas.getActiveObject();
+            let selectedObjects = [];
+          
+            console.log("activeselection:", currentSelection.type);
+            console.log(currentSelection.type.includes('activeselection'));
+            if (currentSelection) {
+              if (currentSelection.type.includes('activeselection')) {
+                selectedObjects = currentSelection.getObjects();
+                console.log('Current selection1:', selectedObjects);
+              } else {
+                selectedObjects = [currentSelection];
+                console.log('Current selection2:', selectedObjects);
+              }
+            }
+
+            console.log("activeselection:", currentSelection.type);
+          
+            const allObjects = [...new Set([...selectedObjects, ...grouped])];
+          
+            console.log('All objects :', allObjects);
+
+            canvas._skipSelectionCleared = true;
+            canvas.discardActiveObject();
+          
+            const newSelection = new fabric.ActiveSelection(allObjects, { canvas });
+            console.log('newSelection :', newSelection);
             canvas.setActiveObject(newSelection);
             canvas.requestRenderAll();
-            
-            // Prevent default to avoid selection clear
-            e.e.preventDefault();
-            return;
+          
+            setTimeout(() => {
+              canvas._skipSelectionCleared = false;
+            }, 0);
           }
+          
+          
+          // Mark that we've handled this shift-group selection
+          shiftGroupSelectionInProgress = false;
+          
+          // We've prevented default behavior in the higher priority handler
+          return;
         } else {
-          // Just select this group
+          // Not using shift, just select this group
           const sel = new fabric.ActiveSelection(grouped, { canvas });
           canvas.setActiveObject(sel);
           canvas.requestRenderAll();
         }
       }
     }
+    
+    // Reset our flag if we didn't specifically handle a group selection
+    shiftGroupSelectionInProgress = false;
   });
   
   // Override Fabric's selection:created event to handle groups in drag selection
