@@ -301,9 +301,63 @@ export function animateBirds(canvas, selected, { data = [] } = {}) {
     gsap.ticker.add(update);
 
     birds.forEach(b => {
+      // Create the tween object with custom pause/resume methods
       b.tween = {
+        // Standard pause/resume for the ticker
         pause: () => gsap.ticker.remove(update),
         resume: () => gsap.ticker.add(update),
+        
+        // Custom pause/resume with state preservation
+        customPause: function() {
+          // Save the current state
+          b._pausedState = {
+            left: b.left,
+            top: b.top,
+            angle: b.angle,
+            originalLeft: b.originalLeft,
+            originalTop: b.originalTop
+          };
+          
+          // Reset the manually moved flag
+          b._manuallyMoved = false;
+          
+          // Call the standard pause
+          this.pause();
+        },
+        
+        customResume: function() {
+          // Restore state if it was saved
+          if (b._pausedState) {
+            // If the bird was manually moved while paused
+            if (b._manuallyMoved) {
+              // Update the original position to the current position
+              b.originalLeft = b.left;
+              b.originalTop = b.top;
+              
+              // We need to recreate the flocking behavior for this bird
+              // But we won't implement that here since it would require
+              // rewriting the flocking algorithm
+              
+              // For now, just allow the bird to continue from its new position
+              b.setCoords();
+            } else {
+              // Normal restore if not manually moved
+              b.left = b._pausedState.left;
+              b.top = b._pausedState.top;
+              b.angle = b._pausedState.angle;
+              b.originalLeft = b._pausedState.originalLeft;
+              b.originalTop = b._pausedState.originalTop;
+              b.setCoords();
+            }
+            
+            // Clear the paused state and manual move flag
+            delete b._pausedState;
+            delete b._manuallyMoved;
+          }
+          
+          // Call the standard resume
+          this.resume();
+        }
       };
     });
   }
@@ -375,6 +429,17 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
     obj.swayX = 0;
     obj.swayAngle = 0;
 
+    // Create a better tween handling that saves state on pause
+    const updateFn = () => {
+      // Only update if the animation is running (not being dragged)
+      if (!obj.dragging) {
+        obj.set('left', obj.originalLeft + obj.swayX);
+        obj.set('angle', obj.swayAngle);
+        obj.setCoords();
+        canvas.requestRenderAll();
+      }
+    };
+    
     const tween = gsap.to(obj, {
       swayX: `+=${drift}`,
       swayAngle: `+=${rock}`,
@@ -382,13 +447,76 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
       yoyo: true,
       repeat: -1,
       ease: 'sine.inOut',
-      onUpdate: () => {
-        obj.set('left', obj.originalLeft + obj.swayX);
-        obj.set('angle', obj.swayAngle);
-        obj.setCoords();
-        canvas.requestRenderAll();
-      }
+      onUpdate: updateFn
     });
+    
+    // Create custom pause/resume methods
+    tween.customPause = function() {
+      this.pause();
+      // Save the current state when paused
+      obj._pausedState = {
+        left: obj.left,
+        originalLeft: obj.originalLeft,
+        angle: obj.angle,
+        swayX: obj.swayX,
+        swayAngle: obj.swayAngle
+      };
+      // Reset the manually moved flag
+      obj._manuallyMoved = false;
+    };
+    
+    tween.customResume = function() {
+      // Restore state if it was saved
+      if (obj._pausedState) {
+        // If the object was manually moved while paused, we don't want to
+        // restore the old position, just update the animation parameters
+        if (obj._manuallyMoved) {
+          // Keep the current position but reset animation parameters
+          obj.swayX = 0;
+          obj.swayAngle = 0;
+          // Important: Update the original position to the current position
+          obj.originalLeft = obj.left;
+          if (obj.originalTop !== undefined) {
+            obj.originalTop = obj.top;
+          }
+          // Force immediate update of position in the GSAP animation
+          gsap.set(obj, { swayX: 0, swayAngle: 0 });
+          // Ensure the animation uses the new origin point
+          this.kill(); // Kill the old tween
+          // Create a new tween with the updated position
+          const newTween = gsap.to(obj, {
+            swayX: `+=${drift}`,
+            swayAngle: `+=${rock}`,
+            duration: dur,
+            yoyo: true,
+            repeat: -1,
+            ease: 'sine.inOut',
+            onUpdate: updateFn
+          });
+          // Replace the old tween with the new one
+          obj.tween = newTween;
+          // Copy custom methods to the new tween
+          newTween.customPause = this.customPause;
+          newTween.customResume = this.customResume;
+          obj.setCoords();
+        } else {
+          // Normal restore if not manually moved
+          obj.originalLeft = obj._pausedState.originalLeft;
+          obj.left = obj._pausedState.left;
+          obj.angle = obj._pausedState.angle;
+          obj.swayX = obj._pausedState.swayX;
+          obj.swayAngle = obj._pausedState.swayAngle;
+          obj.setCoords();
+          this.resume();
+        }
+        
+        // Clear the paused state and manual move flag
+        delete obj._pausedState;
+        delete obj._manuallyMoved;
+      } else {
+        this.resume();
+      }
+    };
 
     obj.tween = tween;
     animatedObjects.push(obj);
@@ -433,6 +561,17 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
     fabricGroup.memberIds = groupMembers.map(obj => obj.id);
     
     // Animate the group as a single unit
+    // Create a better tween handling that saves state on pause for groups
+    const updateFn = () => {
+      // Only update if the group is not being dragged
+      if (!fabricGroup.dragging) {
+        fabricGroup.set('left', fabricGroup.originalLeft + fabricGroup.swayX);
+        fabricGroup.set('angle', fabricGroup.swayAngle);
+        fabricGroup.setCoords();
+        canvas.requestRenderAll();
+      }
+    };
+    
     const tween = gsap.to(fabricGroup, {
       swayX: `+=${drift}`,
       swayAngle: `+=${rock}`,
@@ -440,13 +579,74 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
       yoyo: true,
       repeat: -1,
       ease: 'sine.inOut',
-      onUpdate: () => {
-        fabricGroup.set('left', fabricGroup.originalLeft + fabricGroup.swayX);
-        fabricGroup.set('angle', fabricGroup.swayAngle);
-        fabricGroup.setCoords();
-        canvas.requestRenderAll();
-      }
+      onUpdate: updateFn
     });
+    
+    // Create custom pause/resume methods for groups
+    tween.customPause = function() {
+      this.pause();
+      // Save the current state when paused
+      fabricGroup._pausedState = {
+        left: fabricGroup.left,
+        originalLeft: fabricGroup.originalLeft,
+        angle: fabricGroup.angle,
+        swayX: fabricGroup.swayX,
+        swayAngle: fabricGroup.swayAngle
+      };
+      // Reset the manually moved flag
+      fabricGroup._manuallyMoved = false;
+    };
+    
+    tween.customResume = function() {
+      // Restore state if it was saved
+      if (fabricGroup._pausedState) {
+        // If the group was manually moved while paused
+        if (fabricGroup._manuallyMoved) {
+          // Keep the current position but reset animation parameters
+          fabricGroup.swayX = 0;
+          fabricGroup.swayAngle = 0;
+          // Update the original position to the current position
+          fabricGroup.originalLeft = fabricGroup.left;
+          if (fabricGroup.originalTop !== undefined) {
+            fabricGroup.originalTop = fabricGroup.top;
+          }
+          // Force immediate update of position in the GSAP animation
+          gsap.set(fabricGroup, { swayX: 0, swayAngle: 0 });
+          // Ensure the animation uses the new origin point
+          this.kill(); // Kill the old tween
+          // Create a new tween with the updated position
+          const newTween = gsap.to(fabricGroup, {
+            swayX: `+=${drift}`,
+            swayAngle: `+=${rock}`,
+            duration: dur,
+            yoyo: true,
+            repeat: -1,
+            ease: 'sine.inOut',
+            onUpdate: updateFn
+          });
+          // Replace the old tween with the new one
+          fabricGroup.tween = newTween;
+          // Copy custom methods to the new tween
+          newTween.customPause = this.customPause;
+          newTween.customResume = this.customResume;
+          fabricGroup.setCoords();
+        } else {
+          // Normal restore if not manually moved
+          fabricGroup.originalLeft = fabricGroup._pausedState.originalLeft;
+          fabricGroup.left = fabricGroup._pausedState.left;
+          fabricGroup.angle = fabricGroup._pausedState.angle;
+          fabricGroup.swayX = fabricGroup._pausedState.swayX;
+          fabricGroup.swayAngle = fabricGroup._pausedState.swayAngle;
+          fabricGroup.setCoords();
+          this.resume();
+        }
+        // Clear the paused state and manual move flag
+        delete fabricGroup._pausedState;
+        delete fabricGroup._manuallyMoved;
+      } else {
+        this.resume();
+      }
+    };
     
     fabricGroup.tween = tween;
     
