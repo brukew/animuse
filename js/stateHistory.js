@@ -152,10 +152,12 @@ export class StateHistory {
             return;
           }
           
-          // Replay the animation with the found objects
+          // Replay the animation with the found objects, preserving the title
           animate(anim.prompt || anim.type, this.canvas, objsToAnimate, { 
             data: anim.data,
-            id: anim.id
+            id: anim.id,
+            title: anim.title,
+            _titleCustomized: anim._titleCustomized
           }, { save: false });
         });
       }

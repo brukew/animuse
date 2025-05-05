@@ -11,7 +11,86 @@ export function createAnimationEntry(anim, canvas) {
   
     const titleText = document.createElement('span');
     titleText.className = 'entry-title-text';
-    titleText.textContent = anim.prompt || `(${anim.type})`;
+    titleText.textContent = anim.title || anim.prompt || `(${anim.type})`;
+    titleText.title = "Double-click to edit title";
+    
+    // Handle double-click to edit title
+    titleText.addEventListener('dblclick', (e) => {
+      // Create an input element to replace the title text
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'title-edit-input';
+      input.value = anim.title || '';
+      input.placeholder = 'Enter a title';
+      
+      // Replace the title text with the input
+      titleText.style.display = 'none';
+      header.insertBefore(input, titleText);
+      
+      // Focus and select all text in the input
+      input.focus();
+      input.select();
+      
+      // Track whether input has already been removed
+      let inputRemoved = false;
+
+      // Function to save the edited title
+      const saveTitle = () => {
+        // Only proceed if the input is still in the DOM
+        if (inputRemoved) return;
+        inputRemoved = true;
+        
+        const newTitle = input.value.trim();
+        if (newTitle) {
+          anim.title = newTitle;
+          anim.updatedAt = Date.now();
+          anim._titleCustomized = true; // Mark that title has been manually customized
+          titleText.textContent = newTitle;
+          
+          // Save to history after title change
+          setTimeout(() => canvas.history.saveState(), 20);
+        }
+        
+        // Remove the input and show the title again
+        try {
+          header.removeChild(input);
+        } catch (e) {
+          console.log("Input already removed");
+        }
+        titleText.style.display = '';
+
+      };
+
+      // Function to cancel editing without saving
+      const cancelEdit = () => {
+        if (inputRemoved) return;
+        inputRemoved = true;
+        
+        try {
+          header.removeChild(input);
+        } catch (e) {
+          console.log("Input already removed");
+        }
+        titleText.style.display = '';
+      };
+      
+      // Save on enter key, cancel on escape
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          saveTitle();
+          e.preventDefault();
+        } else if (e.key === 'Escape') {
+          cancelEdit();
+          e.preventDefault();
+        }
+      });
+      
+      // Save on blur (click outside)
+      input.addEventListener('blur', saveTitle);
+      
+      // Prevent the event from bubbling up
+      e.stopPropagation();
+    });
   
     // Calculate the actual object count, considering grouped objects
     let objectCount = 0;
@@ -33,7 +112,7 @@ export function createAnimationEntry(anim, canvas) {
     const objectCountSpan = document.createElement('span');
     objectCountSpan.className = 'object-count';
     objectCountSpan.textContent = `${objectCount} object${objectCount !== 1 ? 's' : ''}`;
-    
+
     // Add both to the meta element
     meta.appendChild(objectCountSpan);
   
@@ -118,15 +197,17 @@ export function createAnimationEntry(anim, canvas) {
       modal.classList.remove("hidden");
   
       const save = () => {
-        anim.prompt = input.value.trim();
+        const newPrompt = input.value.trim();
+        anim.prompt = newPrompt;
         anim.updatedAt = Date.now(); // Update the timestamp when editing
-        titleText.textContent = anim.prompt;
         
-        // Update the time info tooltip
-        const timeInfo = entry.querySelector('.time-info');
-        if (timeInfo) {
-          timeInfo.title = `Created: ${anim.createdAt ? new Date(anim.createdAt).toLocaleString() : 'Unknown'}\nUpdated: ${new Date(anim.updatedAt).toLocaleString()}`;
+        // If title has never been customized, update it along with the prompt
+        if (!anim._titleCustomized) {
+          anim.title = newPrompt;
+          titleText.textContent = newPrompt;
         }
+        
+        // Prompt is updated, no need to update any time info
 
         // Collect all IDs to select, including those in groups
         const allIds = new Set();
@@ -158,6 +239,8 @@ export function createAnimationEntry(anim, canvas) {
         animate(anim.prompt, canvas, objs, {
             id: anim.id,
             data: anim.data,
+            title: anim.title,
+            _titleCustomized: anim._titleCustomized,
             update: true
           }, { save: true });
           

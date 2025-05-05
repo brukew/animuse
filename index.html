@@ -41,8 +41,12 @@
   </div>
   <div id="editPromptModal" class="modal hidden">
     <div class="modal-content">
-      <h3>Edit Animation Prompt</h3>
-      <input id="editPromptInput" type="text" />
+      <h3>Edit Animation Settings</h3>
+      <div class="input-group">
+        <label for="editPromptInput">Animation Prompt:</label>
+        <input id="editPromptInput" type="text" placeholder="birds or apples" />
+        <p class="input-help">Changes the animation behavior. Currently supports "birds" or "apples".</p>
+      </div>
       <div class="modal-buttons">
         <button id="savePromptBtn">Save</button>
         <button id="cancelPromptBtn">Cancel</button>

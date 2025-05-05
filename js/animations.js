@@ -14,6 +14,7 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
   const reanimate = options.update && (options.data?.length !== 0);
   let all_changed = false;
   let animId = options.id || `${key}_${Date.now()}`;
+  let existingTitle = null;
 
   if (reanimate) {
     const existingIndex = canvas.activeAnimations.findIndex(a => a.id === options.id);
@@ -67,6 +68,16 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
 
       // reuse ID if full reanimation, otherwise assign new one
       animId = all_changed ? options.id : `${key}_${Date.now()}`;
+  
+  // If this is a reanimation, preserve the title and customization state from the existing animation
+  if (reanimate && !all_changed && existingIndex !== -1) {
+    const existingAnimation = canvas.activeAnimations[existingIndex];
+    existingTitle = existingAnimation.title;
+    // If there was no _titleCustomized flag passed in options, use the existing one
+    if (options._titleCustomized === undefined) {
+      options._titleCustomized = existingAnimation._titleCustomized;
+    }
+  }
     }
   }
 
@@ -91,6 +102,8 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
     id: animId,
     type: key,
     name: options.name || `${key} animation`,
+    title: options.title || existingTitle || prompt || `${key} animation`, // Preserve title during reanimation
+    _titleCustomized: options._titleCustomized || false, // Preserve customization state
     prompt,
     data,
     createdAt,
