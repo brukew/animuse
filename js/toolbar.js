@@ -19,6 +19,7 @@ export class Toolbar {
     this.sizePicker = get('sizePicker');
     this.drawBtn = get('drawBtn');
     this.selectBtn = get('selectBtn');
+    this.groupBtn = get('groupBtn');
     this.deleteBtn = get('deleteBtn');
     this.undoBtn = get('undoBtn');
     this.redoBtn = get('redoBtn');
@@ -31,8 +32,31 @@ export class Toolbar {
     this.deleteBtn.addEventListener('click', () => this.deleteSelected());
     this.undoBtn.addEventListener('click', () => canvas.history.undo());
     this.redoBtn.addEventListener('click', () => canvas.history.redo());
-
     this.pauseBtn.addEventListener('click', () => this.toggleAnimations());
+    
+    // Initialize group button state
+    this.updateGroupButton();
+    
+    // Group button event listener
+    this.groupBtn.addEventListener('click', () => {
+      const sel = canvas.getActiveObjects();
+      if (!sel || sel.length < 2) return;
+      
+      // Generate a unique group ID
+      const groupId = `group_${Date.now()}`;
+      
+      // Assign the group ID to all selected objects
+      sel.forEach(obj => {
+        obj.groupId = groupId;
+      });
+      
+      // Save state after grouping
+      setTimeout(() => canvas.history.saveState(), 20);
+      
+      // Clear selection to ensure proper visual state
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+    });
 
     get('animateBtn').addEventListener('click', () => {
       const sel = canvas.getActiveObjects();
@@ -111,6 +135,13 @@ export class Toolbar {
         this.animationsPaused ? o.tween.pause() : o.tween.resume();
       }
     });
+  }
+  
+  // Update the group button state based on the current selection
+  updateGroupButton() {
+    const { canvas } = this;
+    const sel = canvas.getActiveObjects?.() || [];
+    this.groupBtn.disabled = sel.length < 2;
   }
 }
 

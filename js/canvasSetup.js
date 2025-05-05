@@ -49,6 +49,7 @@ export function setupCanvas(id) {
   });
 
   canvas.on('selection:created', () => {
+    // Pause animations for selected objects
     canvas.getActiveObjects().forEach(o => {
       if (o?.tween && o?.isAnimated) {
         o.tween.pause();
@@ -64,6 +65,24 @@ export function setupCanvas(id) {
     canvas.getObjects().forEach(o => {
       if (o.tween?.resume) o.tween.resume();
     });
+  });
+  
+  // Handle clicking on grouped objects
+  canvas.on('mouse:down', (e) => {
+    const clicked = e.target;
+    if (clicked?.groupId) {
+      const groupId = clicked.groupId;
+      
+      // Find all objects with the same group ID
+      const grouped = canvas.getObjects().filter(o => o.groupId === groupId);
+      
+      // Only create a selection if there are multiple objects in the group
+      if (grouped.length > 1) {
+        const sel = new fabric.ActiveSelection(grouped, { canvas });
+        canvas.setActiveObject(sel);
+        canvas.requestRenderAll();
+      }
+    }
   });
 
   setTimeout(() => history.initState(), 100);

@@ -20,9 +20,40 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
 
     if (existingIndex !== -1) {
       const anim = canvas.activeAnimations[existingIndex];
-
-      const selectedIds = new Set(selected.map(o => o.id));
-      const remainingData = anim.data.filter(d => !selectedIds.has(d.id));
+      
+      // Create a set of all selected object IDs, including those in the same group
+      const selectedIds = new Set();
+      
+      selected.forEach(obj => {
+        // Add the object's ID
+        selectedIds.add(obj.id);
+        
+        // If this is part of a group, also check for other objects in the same group
+        if (obj.groupId) {
+          const groupId = obj.groupId;
+          // Find all objects with this group ID and add their IDs
+          selected.forEach(o => {
+            if (o.groupId === groupId) {
+              selectedIds.add(o.id);
+            }
+          });
+        }
+      });
+      
+      // Filter out data entries for objects that are being reanimated
+      const remainingData = anim.data.filter(d => {
+        // Check if this data entry is for an object being reanimated
+        if (selectedIds.has(d.id)) {
+          return false;
+        }
+        
+        // If this is a grouped object, check if its group is being reanimated
+        if (d.groupId && selected.some(o => o.groupId === d.groupId)) {
+          return false;
+        }
+        
+        return true;
+      });
 
       console.log('Remaining data:', remainingData);
 
@@ -72,18 +103,77 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
 
 
 export function animateBirds(canvas, selected, { data = [] } = {}) {
-  const positions = selected.map(o => {
-    const pt = o.getCenterPoint();
-    return { x: pt.x, y: pt.y, color: o.stroke || '#222' };
+  // Group objects by groupId
+  const groupedObjects = new Map(); // Map of groupId -> objects
+  const singleObjects = []; // Objects that are not part of any group
+  
+  // Categorize objects
+  selected.forEach(obj => {
+    if (obj.groupId) {
+      if (!groupedObjects.has(obj.groupId)) {
+        groupedObjects.set(obj.groupId, []);
+      }
+      groupedObjects.get(obj.groupId).push(obj);
+    } else {
+      singleObjects.push(obj);
+    }
+  });
+  
+  // Calculate positions for all objects (each group will have just one position)
+  const positions = [];
+  const originalIds = [];
+  
+  // Process single objects
+  singleObjects.forEach(obj => {
+    const pt = obj.getCenterPoint();
+    positions.push({ 
+      x: pt.x, 
+      y: pt.y, 
+      color: obj.stroke || '#222',
+      sourceId: obj.id
+    });
+    originalIds.push([obj.id]); // Each single object is its own entry
+  });
+  
+  // Process grouped objects - one bird per group
+  groupedObjects.forEach((members, groupId) => {
+    // Calculate the center of the group
+    let centerX = 0, centerY = 0;
+    let primaryColor = '#222';
+    
+    members.forEach(obj => {
+      const pt = obj.getCenterPoint();
+      centerX += pt.x;
+      centerY += pt.y;
+      // Use the first colored object's stroke as the bird color
+      if (obj.stroke && !primaryColor) {
+        primaryColor = obj.stroke;
+      }
+    });
+    
+    centerX /= members.length;
+    centerY /= members.length;
+    
+    positions.push({
+      x: centerX,
+      y: centerY,
+      color: primaryColor,
+      groupId: groupId,
+      sourceIds: members.map(obj => obj.id)
+    });
+    
+    // Store group member IDs for data tracking
+    originalIds.push(members.map(obj => obj.id));
   });
 
+  // Remove all original objects
   canvas.discardActiveObject();
   selected.forEach(o => canvas.remove(o));
   canvas.requestRenderAll();
 
   const birds = [];
 
-  function createBirdAt(x, y, color) {
+  function createBirdAt(x, y, color, positionIndex) {
     const body = new fabric.Polygon(
       [{ x: 0, y: -6 }, { x: 8, y: 0 }, { x: 0, y: 6 }, { x: -8, y: 0 }],
       { fill: color, originX: 'center', originY: 'center' }
@@ -116,6 +206,14 @@ export function animateBirds(canvas, selected, { data = [] } = {}) {
     bird.animationType = 'bird';
     bird.originalLeft = x;
     bird.originalTop = y;
+    
+    // Store source object information
+    const position = positions[positionIndex];
+    if (position.groupId) {
+      bird.groupId = position.groupId;
+      bird.memberIds = position.sourceIds;
+      bird.isGroupRepresentative = true;
+    }
 
     canvas.add(bird);
     bird.setCoords();
@@ -135,7 +233,7 @@ export function animateBirds(canvas, selected, { data = [] } = {}) {
 
   positions.forEach((p, i) => {
     const color = data[i]?.color || p.color;
-    const bird = createBirdAt(p.x, p.y, color);
+    const bird = createBirdAt(p.x, p.y, color, i);
     birds.push(bird);
   });
 
@@ -212,12 +310,26 @@ export function animateBirds(canvas, selected, { data = [] } = {}) {
 
   setupFlocking(birds);
   
+  // Create data entries for each bird
+  const birdData = birds.map((bird, i) => {
+    const dataEntry = {
+      id: bird.id,
+      color: bird.fill || positions[i].color
+    };
+    
+    // If this is a group representation, include the member info
+    if (bird.isGroupRepresentative) {
+      dataEntry.isGroup = true;
+      dataEntry.groupId = bird.groupId;
+      dataEntry.memberIds = bird.memberIds;
+    }
+    
+    return dataEntry;
+  });
+  
   return {
     objects: birds,
-    data: birds.map((b, i) => ({
-      id: b.id,
-      color: data[i]?.color || positions[i].color
-    }))
+    data: birdData
   };
 }
 
@@ -227,10 +339,29 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
   const dur = 1.2;
 
   canvas.discardActiveObject();
-
-  objs.forEach(o => {
-    const { x, y } = o.getCenterPoint();
-    o.set({
+  
+  // Group objects by their groupId
+  const groupedObjects = new Map(); // Map of groupId -> objects
+  const singleObjects = []; // Objects that are not part of any group
+  const animatedObjects = []; // Objects that will be animated
+  const processedData = []; // Data for animation tracking
+  
+  // First, categorize objects into groups or singles
+  objs.forEach(obj => {
+    if (obj.groupId) {
+      if (!groupedObjects.has(obj.groupId)) {
+        groupedObjects.set(obj.groupId, []);
+      }
+      groupedObjects.get(obj.groupId).push(obj);
+    } else {
+      singleObjects.push(obj);
+    }
+  });
+  
+  // Handle single objects (not in groups)
+  singleObjects.forEach(obj => {
+    const { x, y } = obj.getCenterPoint();
+    obj.set({
       originX: 'center',
       originY: 'center',
       left: x,
@@ -238,13 +369,13 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
       selectable: true
     });
 
-    o.isAnimated = true;
-    o.animationType = 'apple';
-    o.originalLeft = x;
-    o.swayX = 0;
-    o.swayAngle = 0;
+    obj.isAnimated = true;
+    obj.animationType = 'apple';
+    obj.originalLeft = x;
+    obj.swayX = 0;
+    obj.swayAngle = 0;
 
-    const tween = gsap.to(o, {
+    const tween = gsap.to(obj, {
       swayX: `+=${drift}`,
       swayAngle: `+=${rock}`,
       duration: dur,
@@ -252,20 +383,90 @@ export function swayApples(canvas, objs, { data = [] } = {}) {
       repeat: -1,
       ease: 'sine.inOut',
       onUpdate: () => {
-        o.set('left', o.originalLeft + o.swayX);
-        o.set('angle', o.swayAngle);
-        o.setCoords();
+        obj.set('left', obj.originalLeft + obj.swayX);
+        obj.set('angle', obj.swayAngle);
+        obj.setCoords();
         canvas.requestRenderAll();
       }
     });
 
-    o.tween = tween;
+    obj.tween = tween;
+    animatedObjects.push(obj);
+    
+    // Add data entry for single object
+    processedData.push({
+      id: obj.id
+    });
+  });
+  
+  // Handle grouped objects - treat each group as one unit
+  groupedObjects.forEach((groupMembers, groupId) => {
+    // Calculate the center of the group
+    let centerX = 0, centerY = 0;
+    groupMembers.forEach(obj => {
+      const point = obj.getCenterPoint();
+      centerX += point.x;
+      centerY += point.y;
+    });
+    centerX /= groupMembers.length;
+    centerY /= groupMembers.length;
+    
+    // Create a Fabric.js Group from the objects
+    const fabricGroup = new fabric.Group(groupMembers, {
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+      selectable: true
+    });
+    
+    // Remove original objects from canvas
+    groupMembers.forEach(obj => canvas.remove(obj));
+    
+    // Add group properties for animation
+    fabricGroup.isAnimated = true;
+    fabricGroup.animationType = 'apple';
+    fabricGroup.originalLeft = centerX;
+    fabricGroup.swayX = 0;
+    fabricGroup.swayAngle = 0;
+    fabricGroup.groupId = groupId;
+    fabricGroup.memberIds = groupMembers.map(obj => obj.id);
+    
+    // Animate the group as a single unit
+    const tween = gsap.to(fabricGroup, {
+      swayX: `+=${drift}`,
+      swayAngle: `+=${rock}`,
+      duration: dur,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+      onUpdate: () => {
+        fabricGroup.set('left', fabricGroup.originalLeft + fabricGroup.swayX);
+        fabricGroup.set('angle', fabricGroup.swayAngle);
+        fabricGroup.setCoords();
+        canvas.requestRenderAll();
+      }
+    });
+    
+    fabricGroup.tween = tween;
+    
+    // Add the group to the canvas
+    canvas.add(fabricGroup);
+    fabricGroup.setCoords();
+    
+    animatedObjects.push(fabricGroup);
+    
+    // Add data entry for the group
+    processedData.push({
+      id: fabricGroup.id ||= fabric.Object.__uidCounter++,
+      isGroup: true,
+      groupId: groupId,
+      memberIds: fabricGroup.memberIds
+    });
   });
 
   return {
-    objects: objs,
-    data: objs.map((b, i) => ({
-      id: b.id, // will be backfilled in `animate()` if missing
-    }))
+    objects: animatedObjects,
+    data: processedData
   };
 }
