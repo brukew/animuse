@@ -1,15 +1,52 @@
 /* animationPanel.css */
 
+.animation-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 0 5px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+  display: flex;
+  flex-direction: column; /* stack children vertically */
+  gap: 8px; /* optional spacing between title and controls */
+}
+
+.animation-panel-header h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.sort-controls select {
+  padding: 3px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+#animation-entries {
+  overflow-y: auto;
+  max-height: calc(100% - 60px);
+}
+
 .animation-entry {
-    background: white;
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
   
   .entry-header {
     display: flex;
@@ -25,8 +62,23 @@
   }
   
   .entry-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     font-size: 13px;
     color: #666;
+    max-width: 40%;
+    text-align: right;
+  }
+  
+  .object-count {
+    font-weight: 500;
+  }
+  
+  .time-info {
+    font-size: 11px;
+    color: #888;
+    cursor: help;
   }
   
   .edit-btn {

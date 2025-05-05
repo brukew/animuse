@@ -24,16 +24,19 @@
     </div>
   </div>
   <div id="animationPanel">
-    <div class="animation-entry" data-id="birds_...">
-      <div class="entry-header">
-        <span class="entry-title-text"><b>Birds</b></span>
-        <span class="entry-meta">4 objects</span>
+    <div class="animation-panel-header">
+      <h4>Animations</h4>
+      <div class="sort-controls">
+        <label for="sortAnimations">Sort by:</label>
+        <select id="sortAnimations">
+          <option value="latest">Latest Created</option>
+          <option value="oldest">Oldest Created</option>
+          <option value="recently-updated">Recently Updated</option>
+        </select>
       </div>
-      <div class="entry-controls">
-        <button class="select-btn">Select</button>
-        <button class="delete-btn">🗑</button>
-        <button class="edit-btn">✏️</button>
-      </div>
+    </div>
+    <div id="animation-entries">
+      <!-- Animation entries will be rendered here -->
     </div>
   </div>
   <div id="editPromptModal" class="modal hidden">

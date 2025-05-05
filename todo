@@ -9,6 +9,7 @@
   - [x] doesnt work for animations since it saves static state
     - [x] color doesnt save
 - [x] delete doesnt not work with multiple selected
+- [ ] pause and resume a bit buggy (drag and select an object and an animation and click off, and the animation will not resume + selecting from the animation panel then clicking off will not lead to animation resuming)
 
 ## Features to add
 
@@ -40,3 +41,5 @@
   - maybe pass in apples and birds as examples
 - be able to color in objects/group as one object (i.e. a house with multiple strokes would be one object)
   - objectGroup vs animationGroup vs interactionGroup
+
+- need to do interactions, interaction panel. more animations, buffed UI, ipad?, ordering on screen 

@@ -345,81 +345,35 @@ export function setupCanvas(id) {
       if (grouped.length > 1) {
         // If shift is pressed and there's an active selection
         if (isShiftPressed && canvas.getActiveObject()) {
-          // Get current selection
           const currentSelection = canvas.getActiveObject();
-          
-          // Extract objects from the active selection
           let selectedObjects = [];
           
-          if (currentSelection.type === 'activeSelection') {
-            // For activeSelection, we need to get the child objects
+          // The key was using includes() instead of strict equality
+          if (currentSelection.type && currentSelection.type.includes('activeSelection')) {
             selectedObjects = currentSelection.getObjects();
-            console.log('Current selection is a group with', selectedObjects.length, 'objects');
           } else {
-            // For a single object
             selectedObjects = [currentSelection];
-            console.log('Current selection is a single object');
           }
           
-          // Handle case where the selectedObjects themselves could contain activeSelection objects
-          // This is needed to fix the case where a single object selection is actually an ActiveSelection
-          const flattenedSelectedObjects = [];
-          selectedObjects.forEach(obj => {
-            if (obj.type === 'activeSelection') {
-              // If we have an activeSelection, get its child objects
-              const nestedObjects = obj.getObjects();
-              console.log('Found nested selection with', nestedObjects.length, 'objects');
-              flattenedSelectedObjects.push(...nestedObjects);
-            } else {
-              flattenedSelectedObjects.push(obj);
-            }
-          });
+          // Create a combined selection with all objects
+          const allObjects = [...new Set([...selectedObjects, ...grouped])];
           
-          console.log('Flattened selection has', flattenedSelectedObjects.length, 'objects');
+          // Use flag to prevent selection:cleared from being processed
+          canvas._skipSelectionCleared = true;
+          canvas.discardActiveObject();
           
-          if (isShiftPressed && clicked?.groupId) {
-            const groupId = clicked.groupId;
-            const grouped = canvas.getObjects().filter(o => o.groupId === groupId);
+          // Create a new selection with all objects
+          const newSelection = new fabric.ActiveSelection(allObjects, { canvas });
+          canvas.setActiveObject(newSelection);
+          canvas.requestRenderAll();
           
-            const currentSelection = canvas.getActiveObject();
-            let selectedObjects = [];
+          // Clear the flag after the operation
+          setTimeout(() => {
+            canvas._skipSelectionCleared = false;
+          }, 0);
           
-            console.log("activeselection:", currentSelection.type);
-            console.log(currentSelection.type.includes('activeselection'));
-            if (currentSelection) {
-              if (currentSelection.type.includes('activeselection')) {
-                selectedObjects = currentSelection.getObjects();
-                console.log('Current selection1:', selectedObjects);
-              } else {
-                selectedObjects = [currentSelection];
-                console.log('Current selection2:', selectedObjects);
-              }
-            }
-
-            console.log("activeselection:", currentSelection.type);
-          
-            const allObjects = [...new Set([...selectedObjects, ...grouped])];
-          
-            console.log('All objects :', allObjects);
-
-            canvas._skipSelectionCleared = true;
-            canvas.discardActiveObject();
-          
-            const newSelection = new fabric.ActiveSelection(allObjects, { canvas });
-            console.log('newSelection :', newSelection);
-            canvas.setActiveObject(newSelection);
-            canvas.requestRenderAll();
-          
-            setTimeout(() => {
-              canvas._skipSelectionCleared = false;
-            }, 0);
-          }
-          
-          
-          // Mark that we've handled this shift-group selection
+          // We've handled this shift-group selection
           shiftGroupSelectionInProgress = false;
-          
-          // We've prevented default behavior in the higher priority handler
           return;
         } else {
           // Not using shift, just select this group

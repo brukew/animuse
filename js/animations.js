@@ -62,6 +62,7 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
         all_changed = true;
       } else if (remainingData.length !== anim.data.length) {
         canvas.activeAnimations[existingIndex].data = remainingData;
+        canvas.activeAnimations[existingIndex].updatedAt = Date.now(); // Update the modification timestamp
       }
 
       // reuse ID if full reanimation, otherwise assign new one
@@ -81,12 +82,19 @@ export function animate(prompt, canvas, selected, options = {}, { save = true } 
     entry.id ||= objects[i]?.id;
   });
 
+  // Get creation timestamp from the ID or generate a new one
+  const createdAt = options.id ? 
+    parseInt(options.id.split('_').pop(), 10) || Date.now() : 
+    Date.now();
+    
   const animationEntry = {
     id: animId,
     type: key,
     name: options.name || `${key} animation`,
     prompt,
-    data
+    data,
+    createdAt,
+    updatedAt: Date.now() // Track last modification time
   };
 
   console.log('Animation entry:', animationEntry);

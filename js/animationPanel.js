@@ -28,7 +28,14 @@ export function createAnimationEntry(anim, canvas) {
     
     const meta = document.createElement('span');
     meta.className = 'entry-meta';
-    meta.textContent = `${objectCount} object${objectCount !== 1 ? 's' : ''}`;
+    
+    // Show object count
+    const objectCountSpan = document.createElement('span');
+    objectCountSpan.className = 'object-count';
+    objectCountSpan.textContent = `${objectCount} object${objectCount !== 1 ? 's' : ''}`;
+    
+    // Add both to the meta element
+    meta.appendChild(objectCountSpan);
   
     header.append(titleText, meta);
   
@@ -112,7 +119,14 @@ export function createAnimationEntry(anim, canvas) {
   
       const save = () => {
         anim.prompt = input.value.trim();
+        anim.updatedAt = Date.now(); // Update the timestamp when editing
         titleText.textContent = anim.prompt;
+        
+        // Update the time info tooltip
+        const timeInfo = entry.querySelector('.time-info');
+        if (timeInfo) {
+          timeInfo.title = `Created: ${anim.createdAt ? new Date(anim.createdAt).toLocaleString() : 'Unknown'}\nUpdated: ${new Date(anim.updatedAt).toLocaleString()}`;
+        }
 
         // Collect all IDs to select, including those in groups
         const allIds = new Set();
@@ -165,15 +179,70 @@ export function createAnimationEntry(anim, canvas) {
     return entry;
   }
   
-  export function renderAnimationPanel(canvas) {
+  // Sort animations based on the selected sort order
+function sortAnimations(animations, sortOrder) {
+  if (!animations || animations.length === 0) return [];
+  
+  const sorted = [...animations]; // Make a copy to avoid modifying the original array
+  
+  switch (sortOrder) {
+    case 'latest':
+      // Sort by creation date, newest first
+      sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      break;
+    case 'oldest':
+      // Sort by creation date, oldest first
+      sorted.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      break;
+    case 'recently-updated':
+      // Sort by update date, most recent first
+      sorted.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      break;
+    default:
+      // Default to latest created
+      sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+  
+  return sorted;
+}
+
+export function renderAnimationPanel(canvas) {
+  // Get the animation entries container
+  const entriesContainer = document.getElementById('animation-entries');
+  if (!entriesContainer) {
+    // If the container doesn't exist (older version of HTML), fall back to the panel
     const panel = document.getElementById('animationPanel');
     panel.innerHTML = '';
-  
+    
     (canvas.activeAnimations || []).forEach(anim => {
       const entry = createAnimationEntry(anim, canvas);
       panel.appendChild(entry);
     });
+    return;
   }
+  
+  // Clear existing entries
+  entriesContainer.innerHTML = '';
+  
+  // Get the selected sort order
+  const sortSelect = document.getElementById('sortAnimations');
+  const sortOrder = sortSelect ? sortSelect.value : 'latest';
+  
+  // Sort animations based on the selected order
+  const sortedAnimations = sortAnimations(canvas.activeAnimations || [], sortOrder);
+  
+  // Render the sorted animations
+  sortedAnimations.forEach(anim => {
+    const entry = createAnimationEntry(anim, canvas);
+    entriesContainer.appendChild(entry);
+  });
+  
+  // Add event listener to the sort dropdown if it hasn't been added yet
+  if (sortSelect && !sortSelect.hasEventListener) {
+    sortSelect.addEventListener('change', () => renderAnimationPanel(canvas));
+    sortSelect.hasEventListener = true;
+  }
+}
   
   function deleteAnimationBySelection(anim, canvas) {
     console.log('Deleting animation:', anim);
