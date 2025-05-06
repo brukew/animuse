@@ -47,14 +47,40 @@
   - added fixObject animation
   - added z-index ordering
 
-- still need inteactions, interactions view, more animations, buffed UI, ipad testing, whisper, and LLM and instructions
+- still need inteactions, buffed UI, ipad testing, whisper, and LLM and instructions
 
-avoid, follow, orbit, 
+avoid, orbit, 
 
 avoid works for hop and birds
-orbit 
+orbit works
 join
 
-hop
+hop sway birds for animation
 
 would be cool if there wer adjustable settings for both animations and interactions
+
+
+
+
+ccording to our previous plan, here's what's next on the list:
+
+  1. Integrate an LLM to process commands:
+    - Create an API endpoint for sending voice transcriptions to an LLM
+    - Configure the LLM to understand animation-specific language
+    - Parse the LLM responses into structured commands that your app can execute
+  2. Expand command functionality:
+    - Implement commands to create new interactions between animations
+    - Add support for specific animation selection by name/type
+    - Enable deletion commands for specific animations
+    - Add commands to modify animation properties (color, speed, etc.)
+  3. Enhanced contextual awareness:
+    - Track canvas state to provide context to the LLM
+    - Maintain conversation history for multi-turn commands
+    - Enable commands that refer to previous actions ("make that one blue")
+  4. UI improvements:
+    - Add a visual indicator for which animations are being referenced
+    - Implement better feedback when commands are executed
+    - Add an optional transcript display of voice commands and responses
+
+  The most logical next step would be to implement the LLM integration. This would involve setting up a way to send voice commands to an LLM service (like
+  OpenAI's API), processing its responses, and mapping them to specific actions in your animation system.

@@ -10,7 +10,7 @@ body {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 12px;
+  margin: 15px;
 }
 
 #toolbar label {

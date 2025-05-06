@@ -1,7 +1,8 @@
 import { setupCanvas } from './canvasSetup.js';
-import { Toolbar } from './toolbar.js';
+import { Toolbar, deleteSel } from './toolbar.js';
 import { enableGestures } from './gestures.js';
 import { renderInteractionPanel } from './interactionPanel.js';
+import { SpeechController } from './speechRecognition.js';
 
 fabric.Object.prototype.toObject = (function(toObject) {
     return function(propertiesToInclude) {
@@ -14,6 +15,9 @@ fabric.Object.prototype.toObject = (function(toObject) {
   
 fabric.Object.__uidCounter = 1;
 
+// Make deleteSel function available globally
+window.deleteSel = deleteSel;
+
 
 window.addEventListener('load', () => {
   const canvas = setupCanvas('canvas');
@@ -24,4 +28,37 @@ window.addEventListener('load', () => {
   
   // Initialize the interaction panel
   renderInteractionPanel(canvas);
+  
+  // Initialize speech recognition
+  const speechController = new SpeechController(canvas);
+  // Expose speech controller for debugging
+  window.speechController = speechController;
+  
+  // Add a button to toggle speech recognition
+  const speechToggleBtn = document.createElement('button');
+  speechToggleBtn.id = 'speechToggleBtn';
+  speechToggleBtn.className = 'speech-toggle-btn';
+  speechToggleBtn.innerHTML = '🎤 Enable Voice';
+  speechToggleBtn.title = 'Toggle voice commands';
+  
+  // Add to toolbar
+  const toolbar_div = document.getElementById('toolbar');
+  toolbar_div.querySelector('.buttons').appendChild(speechToggleBtn);
+  
+  // Track speech recognition state
+  let speechEnabled = false;
+  
+  // Toggle speech recognition on button click
+  speechToggleBtn.addEventListener('click', () => {
+    if (speechEnabled) {
+      speechController.stop();
+      speechToggleBtn.innerHTML = '🎤 Enable Voice';
+      speechToggleBtn.classList.remove('active');
+    } else {
+      speechController.start();
+      speechToggleBtn.innerHTML = '🎤 Disable Voice';
+      speechToggleBtn.classList.add('active');
+    }
+    speechEnabled = !speechEnabled;
+  });
 });
