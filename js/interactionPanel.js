@@ -339,6 +339,178 @@ function rearrangeZIndices(animations, sourceId, targetId, isBeforeTarget, canva
  * Renders the interaction panel with animations sorted by z-index
  * @param {Object} canvas - The fabric.js canvas object
  */
+// Creates the animations interaction view
+function createInteractionsView(canvas) {
+  const container = document.createElement('div');
+  container.className = 'interactions-view';
+  
+  // If no animations exist
+  if (!canvas.activeAnimations || canvas.activeAnimations.length === 0) {
+    const emptyMessage = document.createElement('div');
+    emptyMessage.className = 'empty-message';
+    emptyMessage.textContent = 'No animations to display.';
+    container.appendChild(emptyMessage);
+    return container;
+  }
+  
+  // Add button to create new interactions
+  const actionBar = document.createElement('div');
+  actionBar.className = 'interactions-actions';
+  
+  const linkBtn = document.createElement('button');
+  linkBtn.className = 'link-animations-btn';
+  linkBtn.textContent = 'Link Animations';
+  linkBtn.title = 'Create a relationship between two animations';
+  
+  actionBar.appendChild(linkBtn);
+  container.appendChild(actionBar);
+  
+  // Initialize or get the existing interactions array
+  canvas.animationInteractions = canvas.animationInteractions || [];
+  
+  // Display existing animation interactions
+  const interactionsContainer = document.createElement('div');
+  interactionsContainer.className = 'interactions-list';
+  
+  if (canvas.animationInteractions.length === 0) {
+    const noInteractionsMsg = document.createElement('div');
+    noInteractionsMsg.className = 'no-interactions-message';
+    noInteractionsMsg.textContent = 'No interactions created yet. Use the "Link Animations" button to create relationships between animations.';
+    interactionsContainer.appendChild(noInteractionsMsg);
+  } else {
+    // Render each interaction
+    canvas.animationInteractions.forEach(interaction => {
+      const interactionItem = document.createElement('div');
+      interactionItem.className = 'interaction-item';
+      
+      // Find the source and target animations
+      const sourceAnim = canvas.activeAnimations.find(a => a.id === interaction.sourceId);
+      const targetAnim = canvas.activeAnimations.find(a => a.id === interaction.targetId);
+      
+      if (!sourceAnim || !targetAnim) {
+        // Skip if either animation no longer exists
+        return;
+      }
+      
+      const sourceTitle = sourceAnim.title || sourceAnim.prompt || '(Unknown)';
+      const targetTitle = targetAnim.title || targetAnim.prompt || '(Unknown)';
+      const relationshipType = interaction.type || 'affects';
+      
+      // Create interaction display
+      interactionItem.innerHTML = `
+        <div class="interaction-source">${sourceTitle}</div>
+        <div class="interaction-relation">${relationshipType}</div>
+        <div class="interaction-target">${targetTitle}</div>
+        <button class="remove-interaction-btn" data-id="${interaction.id}">×</button>
+      `;
+      
+      // Add event listener to remove button
+      interactionItem.querySelector('.remove-interaction-btn').addEventListener('click', () => {
+        // Remove this interaction
+        canvas.animationInteractions = canvas.animationInteractions.filter(i => i.id !== interaction.id);
+        
+        // Save state and refresh the panel
+        setTimeout(() => canvas.history.saveState(), 20);
+        renderInteractionPanel(canvas);
+      });
+      
+      interactionsContainer.appendChild(interactionItem);
+    });
+  }
+  
+  container.appendChild(interactionsContainer);
+  
+  // Add event listener to the "Link Animations" button
+  linkBtn.addEventListener('click', () => {
+    if (canvas.activeAnimations.length < 2) {
+      alert('You need at least two animations to create a link.');
+      return;
+    }
+    
+    // Create the animation selection modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'linkAnimationsModal';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content';
+    
+    modalContent.innerHTML = `
+      <h3>Link Animations</h3>
+      <div class="input-group">
+        <label for="sourceAnimSelect">Source Animation:</label>
+        <select id="sourceAnimSelect">
+          ${canvas.activeAnimations.map(anim => `
+            <option value="${anim.id}">${anim.title || anim.prompt || anim.type}</option>
+          `).join('')}
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="relationshipSelect">Relationship:</label>
+        <select id="relationshipSelect">
+          <option value="triggers">Triggers</option>
+          <option value="follows">Follows</option>
+          <option value="controls">Controls</option>
+          <option value="affects">Affects</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="targetAnimSelect">Target Animation:</label>
+        <select id="targetAnimSelect">
+          ${canvas.activeAnimations.map(anim => `
+            <option value="${anim.id}">${anim.title || anim.prompt || anim.type}</option>
+          `).join('')}
+        </select>
+      </div>
+      <div class="modal-buttons">
+        <button id="saveLinkBtn">Create Link</button>
+        <button id="cancelLinkBtn">Cancel</button>
+      </div>
+    `;
+    
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Add event listeners to the modal buttons
+    document.getElementById('saveLinkBtn').addEventListener('click', () => {
+      const sourceId = document.getElementById('sourceAnimSelect').value;
+      const targetId = document.getElementById('targetAnimSelect').value;
+      const type = document.getElementById('relationshipSelect').value;
+      
+      if (sourceId === targetId) {
+        alert('Source and target animations must be different.');
+        return;
+      }
+      
+      // Create the new interaction
+      const newInteraction = {
+        id: `interaction_${Date.now()}`,
+        sourceId,
+        targetId,
+        type,
+        createdAt: Date.now()
+      };
+      
+      // Add to the canvas interactions array
+      canvas.animationInteractions = canvas.animationInteractions || [];
+      canvas.animationInteractions.push(newInteraction);
+      
+      // Save state and refresh the panel
+      setTimeout(() => canvas.history.saveState(), 20);
+      renderInteractionPanel(canvas);
+      
+      // Remove the modal
+      document.body.removeChild(modal);
+    });
+    
+    document.getElementById('cancelLinkBtn').addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+  });
+  
+  return container;
+}
+
 export function renderInteractionPanel(canvas) {
   const entriesContainer = document.getElementById('interaction-entries');
   if (!entriesContainer) return;
@@ -443,11 +615,9 @@ export function renderInteractionPanel(canvas) {
       }
     });
   } else {
-    // For future implementation: animation interactions
-    const emptyMessage = document.createElement('div');
-    emptyMessage.className = 'empty-message';
-    emptyMessage.textContent = 'Animation interactions view not implemented yet.';
-    entriesContainer.appendChild(emptyMessage);
+    // Show the animation interactions view
+    const interactionsView = createInteractionsView(canvas);
+    entriesContainer.appendChild(interactionsView);
   }
   
   // Add event listener to the display dropdown if it hasn't been added yet

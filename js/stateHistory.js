@@ -68,7 +68,8 @@ export class StateHistory {
                 'isGroupRepresentative', 'groupId', 'memberIds',
                 '_creationOrder' // Include creation order for stacking
             ]),
-            animations: JSON.parse(JSON.stringify(this.canvas.activeAnimations || []))
+            animations: JSON.parse(JSON.stringify(this.canvas.activeAnimations || [])),
+            interactions: JSON.parse(JSON.stringify(this.canvas.animationInteractions || []))
         };
     }
 
@@ -77,8 +78,10 @@ export class StateHistory {
         const parsed = JSON.parse(state);
         const canvasState = parsed.canvasJSON;
         const animations = parsed.animations || [];
+        const interactions = parsed.interactions || [];
         
         console.log("Loaded animations data:", animations);
+        console.log("Loaded interactions data:", interactions);
         
         // Check if any bird animations have color and z-index data
         const hasBirds = animations.some(anim => 
@@ -98,6 +101,7 @@ export class StateHistory {
         this.canvas.discardActiveObject();
         this.canvas.clear();
         this.canvas.activeAnimations = []; // Clear old animations
+        this.canvas.animationInteractions = []; // Clear old interactions
         
         this.canvas.loadFromJSON(canvasState)
             .then(() => {
@@ -134,6 +138,9 @@ export class StateHistory {
                 // Save original animation data for comparison
                 const originalAnimations = JSON.parse(JSON.stringify(animations));
                 this.replayAnimations(animations);
+                
+                // Restore interaction data
+                this.canvas.animationInteractions = interactions;
                 
                 // Compare the loaded objects with the original animation data
                 setTimeout(() => {

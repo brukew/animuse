@@ -146,7 +146,7 @@ export function createAnimationEntry(anim, canvas) {
       });
   
     // Select logic
-    selectBtn.addEventListener('click', () => {
+    selectBtn.addEventListener('click', (e) => {
       console.log('Selecting animation with data:', anim.data);
       
       // Collect all IDs to select, including those in groups
@@ -178,13 +178,41 @@ export function createAnimationEntry(anim, canvas) {
       
       console.log(`Found ${matching.length} objects to select`);
       
-      if (matching.length > 1) {
-        const sel = new fabric.ActiveSelection(matching, { canvas });
-        canvas.setActiveObject(sel);
-      } else if (matching.length === 1) {
-        canvas.setActiveObject(matching[0]);
-      } else {
+      // Check if shift key is pressed for multi-selection
+      const isShiftPressed = e.shiftKey;
+      
+      if (matching.length === 0) {
         console.warn('No objects found to select for animation:', anim.id);
+        return;
+      }
+      
+      // If shift is pressed and we already have a selection, add to it
+      if (isShiftPressed && canvas.getActiveObject()) {
+        const currentSelection = canvas.getActiveObject();
+        let selectedObjects = [];
+        
+        // Get currently selected objects
+        if (currentSelection.type === 'activeSelection') {
+          selectedObjects = currentSelection.getObjects();
+        } else {
+          selectedObjects = [currentSelection];
+        }
+        
+        // Combine previous selection with new matching objects
+        const allObjects = [...new Set([...selectedObjects, ...matching])];
+        
+        // Create a new selection with all objects
+        canvas.discardActiveObject();
+        const newSelection = new fabric.ActiveSelection(allObjects, { canvas });
+        canvas.setActiveObject(newSelection);
+      } else {
+        // Normal selection (no shift key or no previous selection)
+        if (matching.length > 1) {
+          const sel = new fabric.ActiveSelection(matching, { canvas });
+          canvas.setActiveObject(sel);
+        } else if (matching.length === 1) {
+          canvas.setActiveObject(matching[0]);
+        }
       }
       
       canvas.requestRenderAll();
@@ -295,6 +323,71 @@ function sortAnimations(animations, sortOrder) {
   return sorted;
 }
 
+// Update animation panel select buttons based on current selection
+export function updateSelectionState(canvas) {
+  if (!canvas) return;
+  
+  // Get all currently selected object IDs
+  const activeObj = canvas.getActiveObject();
+  if (!activeObj) {
+    // No selection, clear all active states
+    document.querySelectorAll('.select-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelectorAll('.animation-entry').forEach(entry => {
+      entry.classList.remove('selected');
+    });
+    return;
+  }
+  
+  // Create a set of selected object IDs
+  const selectedIds = new Set();
+  
+  if (activeObj.type === 'activeSelection') {
+    // Multiple objects selected
+    activeObj.getObjects().forEach(obj => {
+      selectedIds.add(obj.id);
+    });
+  } else {
+    // Single object selected
+    selectedIds.add(activeObj.id);
+  }
+  
+  // Update each animation entry button
+  document.querySelectorAll('.animation-entry').forEach(entry => {
+    const animId = entry.dataset.id;
+    const anim = canvas.activeAnimations.find(a => a.id === animId);
+    const selectBtn = entry.querySelector('.select-btn');
+    
+    if (!anim || !selectBtn) return;
+    
+    // Check if any objects in this animation are selected
+    let hasSelectedObjects = false;
+    
+    // Create sets of IDs to check against
+    const animObjectIds = new Set();
+    anim.data.forEach(d => {
+      animObjectIds.add(d.id);
+    });
+    
+    // Check for intersection between selected IDs and animation object IDs
+    selectedIds.forEach(id => {
+      if (animObjectIds.has(id)) {
+        hasSelectedObjects = true;
+      }
+    });
+    
+    // Update button and entry state
+    if (hasSelectedObjects) {
+      selectBtn.classList.add('active');
+      entry.classList.add('selected');
+    } else {
+      selectBtn.classList.remove('active');
+      entry.classList.remove('selected');
+    }
+  });
+}
+
 export function renderAnimationPanel(canvas) {
   // Get the animation entries container
   const entriesContainer = document.getElementById('animation-entries');
@@ -331,6 +424,9 @@ export function renderAnimationPanel(canvas) {
     sortSelect.addEventListener('change', () => renderAnimationPanel(canvas));
     sortSelect.hasEventListener = true;
   }
+  
+  // Update the selection state for buttons
+  updateSelectionState(canvas);
 }
   
   function deleteAnimationBySelection(anim, canvas) {

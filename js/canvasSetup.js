@@ -1,5 +1,5 @@
 import { StateHistory } from './stateHistory.js';
-import { renderAnimationPanel } from './animationPanel.js';
+import { renderAnimationPanel, updateSelectionState } from './animationPanel.js';
 
 export function setupCanvas(id) {
   const canvas = new fabric.Canvas(id, { 
@@ -224,6 +224,9 @@ export function setupCanvas(id) {
         }
       }
     });
+    
+    // Update the animation panel button states
+    updateSelectionState(canvas);
   });
   
   // Add event listeners for dragging to prevent animation updates during drag
@@ -301,6 +304,9 @@ export function setupCanvas(id) {
         }
       });
     }
+    
+    // Update the animation panel button states
+    updateSelectionState(canvas);
   });
 
   canvas.on('selection:cleared', () => {
@@ -351,6 +357,9 @@ export function setupCanvas(id) {
     } else {
       console.log('Animations globally paused - not resuming on deselection');
     }
+    
+    // Update the animation panel button states
+    updateSelectionState(canvas);
   });
   
   // Enhanced handling of clicking on grouped objects while preserving shift-select
