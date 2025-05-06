@@ -479,132 +479,7 @@ function createInteractionsView(canvas) {
       const targetId = document.getElementById('targetAnimSelect').value;
       const type = document.getElementById('relationshipSelect').value;
       
-      if (sourceId === targetId) {
-        alert('Source and target animations must be different.');
-        return;
-      }
-      
-      // For avoid relationships, validate that at least one animation is birds or hop
-      if (type === 'avoid') {
-        const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
-        const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
-        
-        if (!sourceAnim || !targetAnim) {
-          alert('Could not find one of the selected animations.');
-          return;
-        }
-        
-        const sourceIsMoving = sourceAnim.type === 'birds' || sourceAnim.type === 'hop';
-        const targetIsMoving = targetAnim.type === 'birds' || targetAnim.type === 'hop';
-        
-        if (!sourceIsMoving && !targetIsMoving) {
-          alert('For "avoid" relationships, at least one animation must be a moving type (birds or hop).');
-          return;
-        }
-      }
-      
-      // For orbit relationships, validate the source and target animations
-      if (type === 'orbit') {
-        const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
-        const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
-        
-        if (!sourceAnim) {
-          alert('Could not find the source animation.');
-          return;
-        }
-        
-        if (!targetAnim) {
-          alert('Could not find the target animation.');
-          return;
-        }
-        
-        // Any animated object can orbit, but we'll show a helpful message
-        if (sourceAnim.type === 'fix') {
-          if (!confirm('A "fix" animation will now orbit. This will override its static behavior. Continue?')) {
-            return;
-          }
-        }
-        
-        // Validate that target is a fixed animation
-        if (targetAnim.type !== 'fix') {
-          if (!confirm('For best results, target should be a "fix" animation. Continue anyway?')) {
-            return;
-          }
-        }
-      }
-      
-      // Create the new interaction
-      // For orbit interactions, always use the target animation as the orbit center
-      let orbitParameters = {};
-      if (type === 'orbit') {
-        const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
-        
-        if (targetAnim && targetAnim.data && targetAnim.data.length > 0) {
-          // Always use the target animation's position as the orbit center
-          const targetObjects = getObjectsFromAnimation(canvas, targetAnim);
-          if (targetObjects.length > 0) {
-            // Calculate the center of all target objects
-            let centerX = 0, centerY = 0;
-            targetObjects.forEach(obj => {
-              centerX += obj.left;
-              centerY += obj.top;
-            });
-            centerX /= targetObjects.length;
-            centerY /= targetObjects.length;
-            
-            // Use the target's center with target tracking enabled
-            orbitParameters = {
-              orbitSpeed: 0.5, // Degrees per frame
-              orbitRadius: undefined, // Use current distance if undefined
-              centerX: centerX,
-              centerY: centerY,
-              orbitTarget: targetId, // Store reference to the target we're orbiting
-              trackTarget: true // Enable dynamic center point tracking
-            };
-          } else {
-            // Fallback to canvas center, but this shouldn't happen with validation
-            orbitParameters = {
-              orbitSpeed: 0.5,
-              orbitRadius: undefined,
-              centerX: canvas.getWidth() / 2,
-              centerY: canvas.getHeight() / 2
-            };
-            console.warn("Target animation has no objects to orbit around.");
-          }
-        } else {
-          // If no valid target, use canvas center, but this shouldn't happen with validation
-          orbitParameters = {
-            orbitSpeed: 0.5,
-            orbitRadius: undefined,
-            centerX: canvas.getWidth() / 2,
-            centerY: canvas.getHeight() / 2
-          };
-          console.warn("Invalid target animation for orbit.");
-        }
-      }
-      
-      const newInteraction = {
-        id: `interaction_${Date.now()}`,
-        sourceId,
-        targetId,
-        type,
-        parameters: type === 'orbit' 
-          ? orbitParameters
-          : {
-              boundaryDistance: 30, // Default radius for boundary/wall detection
-              hopStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
-            },
-        createdAt: Date.now()
-      };
-      
-      // Add to the canvas interactions array
-      canvas.animationInteractions = canvas.animationInteractions || [];
-      canvas.animationInteractions.push(newInteraction);
-      
-      // Save state and refresh the panel
-      setTimeout(() => canvas.history.saveState(), 20);
-      renderInteractionPanel(canvas);
-      
+      createInteraction(sourceId, targetId, type, canvas);
       // Remove the modal
       document.body.removeChild(modal);
     });
@@ -748,4 +623,138 @@ export function renderInteractionPanel(canvas) {
     displaySelect.addEventListener('change', () => renderInteractionPanel(canvas));
     displaySelect.hasEventListener = true;
   }
+}
+
+
+export function createInteraction(sourceId, targetId, type, canvas) {
+  
+  if (sourceId === targetId) {
+    alert('Source and target animations must be different.');
+    return;
+  }
+  
+  // For avoid relationships, validate that at least one animation is birds or hop
+  if (type === 'avoid') {
+    const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
+    const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
+    
+    if (!sourceAnim || !targetAnim) {
+      alert('Could not find one of the selected animations.');
+      return;
+    }
+    
+    const sourceIsMoving = sourceAnim.type === 'birds' || sourceAnim.type === 'hop';
+    const targetIsMoving = targetAnim.type === 'birds' || targetAnim.type === 'hop';
+    
+    if (!sourceIsMoving && !targetIsMoving) {
+      alert('For "avoid" relationships, at least one animation must be a moving type (birds or hop).');
+      return;
+    }
+  }
+  
+  // For orbit relationships, validate the source and target animations
+  if (type === 'orbit') {
+    console.log("Source ID:", sourceId);
+    console.log("Target ID:", targetId);
+
+    console.log("Animations:", canvas.activeAnimations);
+    const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
+    const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
+    
+    if (!sourceAnim) {
+      alert('Could not find the source animation.');
+      return;
+    }
+    
+    if (!targetAnim) {
+      alert('Could not find the target animation.');
+      return;
+    }
+    
+    // Any animated object can orbit, but we'll show a helpful message
+    if (sourceAnim.type === 'fix') {
+      if (!confirm('A "fix" animation will now orbit. This will override its static behavior. Continue?')) {
+        return;
+      }
+    }
+    
+    // Validate that target is a fixed animation
+    if (targetAnim.type !== 'fix') {
+      if (!confirm('For best results, target should be a "fix" animation. Continue anyway?')) {
+        return;
+      }
+    }
+  }
+  
+  // Create the new interaction
+  // For orbit interactions, always use the target animation as the orbit center
+  let orbitParameters = {};
+  if (type === 'orbit') {
+    const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
+    
+    if (targetAnim && targetAnim.data && targetAnim.data.length > 0) {
+      // Always use the target animation's position as the orbit center
+      const targetObjects = getObjectsFromAnimation(canvas, targetAnim);
+      if (targetObjects.length > 0) {
+        // Calculate the center of all target objects
+        let centerX = 0, centerY = 0;
+        targetObjects.forEach(obj => {
+          centerX += obj.left;
+          centerY += obj.top;
+        });
+        centerX /= targetObjects.length;
+        centerY /= targetObjects.length;
+        
+        // Use the target's center with target tracking enabled
+        orbitParameters = {
+          orbitSpeed: 0.5, // Degrees per frame
+          orbitRadius: undefined, // Use current distance if undefined
+          centerX: centerX,
+          centerY: centerY,
+          orbitTarget: targetId, // Store reference to the target we're orbiting
+          trackTarget: true // Enable dynamic center point tracking
+        };
+      } else {
+        // Fallback to canvas center, but this shouldn't happen with validation
+        orbitParameters = {
+          orbitSpeed: 0.5,
+          orbitRadius: undefined,
+          centerX: canvas.getWidth() / 2,
+          centerY: canvas.getHeight() / 2
+        };
+        console.warn("Target animation has no objects to orbit around.");
+      }
+    } else {
+      // If no valid target, use canvas center, but this shouldn't happen with validation
+      orbitParameters = {
+        orbitSpeed: 0.5,
+        orbitRadius: undefined,
+        centerX: canvas.getWidth() / 2,
+        centerY: canvas.getHeight() / 2
+      };
+      console.warn("Invalid target animation for orbit.");
+    }
+  }
+  
+  const newInteraction = {
+    id: `interaction_${Date.now()}`,
+    sourceId,
+    targetId,
+    type,
+    parameters: type === 'orbit' 
+      ? orbitParameters
+      : {
+          boundaryDistance: 30, // Default radius for boundary/wall detection
+          hopStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
+        },
+    createdAt: Date.now()
+  };
+  
+  // Add to the canvas interactions array
+  canvas.animationInteractions = canvas.animationInteractions || [];
+  canvas.animationInteractions.push(newInteraction);
+  
+  // Save state and refresh the panel
+  setTimeout(() => canvas.history.saveState(), 20);
+  renderInteractionPanel(canvas);
 }

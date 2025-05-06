@@ -1,9 +1,29 @@
+:root {
+  --accent-gradient: linear-gradient(135deg, #7b61ff, #ff6ec4);
+  --primary-color: #7b61ff;
+  --secondary-color: #ff6ec4;
+  --text-dark: #222;
+  --panel-bg: #fdfdfd;
+  --button-bg: #f5f5f5;
+  --shadow: 0 4px 8px rgba(0,0,0,0.08);
+}
+
 body {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 0;
-  font-family: sans-serif;
+  font-family: 'Inter', 'Poppins', 'Segoe UI', sans-serif;
+  color: var(--text-dark);
+}
+
+.brand-heading {
+  font-size: 32px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  margin: 20px 0;
 }
 
 #toolbar {
@@ -34,9 +54,12 @@ body {
 }
 
 canvas {
-  border: 1px solid #777;
-  touch-action: none;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
   cursor: crosshair;
+  touch-action: none;
+
 }
 
 #canvasWrapper {
@@ -46,6 +69,34 @@ canvas {
   align-items: center;
   position: relative;
   z-index: 0;
+}
+
+button {
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: var(--button-bg);
+  border: 1px solid #ccc;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: #eaeaea;
+}
+
+button:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.panel-header {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+  text-align: center;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 #animationPanel {
@@ -70,6 +121,12 @@ canvas {
   border-left: 1px solid #ccc;
   overflow-y: auto;
   padding: 10px;
+}
+
+#animationPanel,
+#interactionPanel {
+  background: var(--panel-bg);
+  box-shadow: var(--shadow);
 }
 
 .animation-entry {
@@ -144,3 +201,32 @@ canvas {
   display: none;
 }
 
+.sort-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sort-tab {
+  background: #f3f3f3;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+  font-weight: 500;
+}
+
+.sort-tab:hover {
+  background: #e0e0e0;
+}
+
+.sort-tab.active {
+  background: var(--accent-gradient);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}

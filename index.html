@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <title>AniMuse</title>
   <link rel="stylesheet" href="styles/canvas.css">
   <link rel="stylesheet" href="styles/animationPanel.css">
   <link rel="stylesheet" href="styles/interactionPanel.css">
   <link rel="stylesheet" href="styles/speechRecognition.css">
+  <link rel="stylesheet" href="styles/llm.css">
 </head>
 <body>
-  <h3>AniMuse</h3>
+  <h1 class="brand-heading">AniMuse</h1>
   <div id="toolbar">
     <label>Color <input type="color" id="colorPicker" value="#000000"></label>
     <label>Size <input type="range" id="sizePicker" min="1" max="40" value="4"></label>
@@ -27,7 +29,13 @@
   </div>
   <div id="animationPanel">
     <div class="animation-panel-header">
-      <h4>Animations</h4>
+      <h4 class="panel-header">Animations</h4>
+      <div class="sort-tabs">
+        <button class="sort-tab active" data-sort="latest">Latest</button>
+        <button class="sort-tab" data-sort="oldest">Oldest</button>
+        <button class="sort-tab" data-sort="updated">Updated</button>
+      </div>
+      
       <div class="sort-controls">
         <label for="sortAnimations">Sort by:</label>
         <select id="sortAnimations">
@@ -43,7 +51,7 @@
   </div>
   <div id="interactionPanel">
     <div class="interaction-panel-header">
-      <h4>Interactions</h4>
+      <h4 class="panel-header">Interactions</h4>
       <div class="display-controls">
         <label for="displayInteractions">Display:</label>
         <select id="displayInteractions">
@@ -61,8 +69,7 @@
       <h3>Edit Animation Settings</h3>
       <div class="input-group">
         <label for="editPromptInput">Animation Prompt:</label>
-        <input id="editPromptInput" type="text" placeholder="birds, apples, hop, or fix" />
-        <p class="input-help">Changes the animation behavior. Currently supports "birds", "apples", "hop" (up and down motion), or "fix" (static, no animation).</p>
+        <input id="editPromptInput" type="text" placeholder="birds, sway, hop, or fix" />
       </div>
       <div class="modal-buttons">
         <button id="savePromptBtn">Save</button>

@@ -3,6 +3,7 @@ import { Toolbar, deleteSel } from './toolbar.js';
 import { enableGestures } from './gestures.js';
 import { renderInteractionPanel } from './interactionPanel.js';
 import { SpeechController } from './speechRecognition.js';
+import { LLMController } from './llmController.js';
 
 fabric.Object.prototype.toObject = (function(toObject) {
     return function(propertiesToInclude) {
@@ -28,6 +29,11 @@ window.addEventListener('load', () => {
   
   // Initialize the interaction panel
   renderInteractionPanel(canvas);
+  
+  // Initialize LLM controller
+  const llmController = new LLMController(canvas);
+  // Expose LLM controller for debugging
+  window.llmController = llmController;
   
   // Initialize speech recognition
   const speechController = new SpeechController(canvas);

@@ -27,7 +27,7 @@
   - a bit buggy when changing layer order (might be due to fix animation) but works for demo.
   
 - [x]pause and play animation
-  - [ ] fix bug with moving apples on pause (align pause / resume with selection cleared)
+  - [ ] fix bug with moving sway on pause (align pause / resume with selection cleared)
 
 - [ ] add directions in beginning
   - [ ] hints thrughout page + question mark that expands into directions again
@@ -38,7 +38,7 @@
   - aniamtion tool
   - interaction tool
 - Need to tell it to be mindful about animated items when being moved, color changed, deleted, and such
-  - maybe pass in apples and birds as examples
+  - maybe pass in sway and birds as examples
 - be able to color in objects/group as one object (i.e. a house with multiple strokes would be one object)
   - objectGroup vs animationGroup vs interactionGroup
 
@@ -47,7 +47,7 @@
   - added fixObject animation
   - added z-index ordering
 
-- still need inteactions, buffed UI, ipad testing, whisper, and LLM and instructions
+  buffed UI, ipad testing
 
 avoid, orbit, 
 
@@ -84,3 +84,30 @@ ccording to our previous plan, here's what's next on the list:
 
   The most logical next step would be to implement the LLM integration. This would involve setting up a way to send voice commands to an LLM service (like
   OpenAI's API), processing its responses, and mapping them to specific actions in your animation system.
+
+
+
+  Next Steps for AniMuse Voice Control
+
+  1. LLM Integration
+    - Set up API endpoint to connect with an LLM service (OpenAI, Anthropic, etc.)
+    - Create a function to send user voice commands to the LLM for natural language understanding
+    - Implement a parser to convert LLM responses into structured commands
+  2. Enhanced Voice Commands
+    - Add animation type-specific commands (e.g., "select all birds", "delete sway")
+    - Implement commands to create interactions between animations (avoid, orbit)
+    - Add commands for modifying animation properties (change color, speed)
+  3. Context Awareness
+    - Track canvas state to provide context to the LLM
+    - Support reference commands like "make that one blue" or "delete these"
+    - Maintain conversation history for multi-turn interactions
+  4. UI Improvements
+    - Add visual feedback for which animations are being referenced
+    - Create a help modal with available commands
+    - Add a transcript display option to show commands and responses
+  5. Reliability Improvements
+    - Fine-tune command recognition accuracy
+    - Handle edge cases for selections and deletions
+    - Improve error handling and user feedback
+
+  These enhancements will create a more natural and powerful voice interaction experience for AniMuse users.

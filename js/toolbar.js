@@ -58,7 +58,7 @@ export class Toolbar {
       canvas.requestRenderAll();
     });
 
-    get('animateBtn').addEventListener('click', () => {
+    get('animateBtn').addEventListener('click', async () => {
       const sel = canvas.getActiveObjects();
       if (!sel.length) return alert('Select items');
     
@@ -68,21 +68,91 @@ export class Toolbar {
         a.data.some(d => ids.includes(d.id))
       );
         
-      if (existingAnim) {
-        const confirmMsg = `These objects are already animated with: "${existingAnim.prompt}"\n\nDo you want to reanimate them with the new prompt?`;
-        const confirmed = confirm(confirmMsg);
-        if (!confirmed) return;
-        const rawPrompt = prompt('Animate: birds or apples?') || '';
-        animate(rawPrompt, canvas, sel, {
-          update: true,
-          id: existingAnim.id,
-          data: existingAnim.data
-        }, { save: true });
-      }
-
-      else{
-        const rawPrompt = prompt('Animate: birds or apples?') || '';
-        animate(rawPrompt, canvas, sel);
+      // Get the prompt from user
+      const rawPrompt = prompt('Describe the animation you want to create:') || '';
+      if (!rawPrompt) return; // User cancelled
+      
+      // Create a status message
+      const statusDiv = document.createElement('div');
+      statusDiv.className = 'llm-status';
+      statusDiv.textContent = 'Processing your animation request...';
+      document.body.appendChild(statusDiv);
+      
+      try {
+        // Process the prompt through the LLM controller
+        if (window.llmController) {
+          const parsedCommand = await window.llmController.processPrompt(rawPrompt);
+          
+          if (parsedCommand.error) {
+            statusDiv.textContent = parsedCommand.error;
+            setTimeout(() => document.body.removeChild(statusDiv), 3000);
+            return;
+          }
+          
+          // If it's a create animation command, use the parsed animation type
+          if (parsedCommand.action === 'create' && parsedCommand.animationType) {
+            statusDiv.textContent = `Creating ${parsedCommand.animationType} animation...`;
+            const title = parsedCommand.title
+            // Handle reanimation case
+            if (existingAnim) {
+              const confirmMsg = `These objects are already animated with: "${existingAnim.prompt}"\n\nDo you want to reanimate them with ${parsedCommand.animationType}?`;
+              const confirmed = confirm(confirmMsg);
+              if (!confirmed) {
+                document.body.removeChild(statusDiv);
+                return;
+              }
+              
+              animate(parsedCommand.animationType, canvas, sel, {
+                update: true,
+                id: existingAnim.id,
+                data: existingAnim.data,
+                title: title
+              }, { save: true });
+            } else {
+              // Create new animation
+              animate(parsedCommand.animationType, canvas, sel, {
+                title: title
+              });
+            }
+            
+            statusDiv.textContent = `Created ${parsedCommand.animationType} animation`;
+            setTimeout(() => document.body.removeChild(statusDiv), 2000);
+          } else {
+            // Fallback to using the raw prompt if we couldn't parse it
+            statusDiv.textContent = `Using original prompt: ${rawPrompt}`;
+            
+            if (existingAnim) {
+              animate(rawPrompt, canvas, sel, {
+                update: true,
+                id: existingAnim.id,
+                data: existingAnim.data
+              }, { save: true });
+            } else {
+              animate(rawPrompt, canvas, sel);
+            }
+            
+            setTimeout(() => document.body.removeChild(statusDiv), 2000);
+          }
+        } else {
+          // Fallback if LLM controller isn't available
+          statusDiv.textContent = 'LLM not available, using direct animation';
+          
+          if (existingAnim) {
+            animate(rawPrompt, canvas, sel, {
+              update: true,
+              id: existingAnim.id,
+              data: existingAnim.data
+            }, { save: true });
+          } else {
+            animate(rawPrompt, canvas, sel);
+          }
+          
+          setTimeout(() => document.body.removeChild(statusDiv), 2000);
+        }
+      } catch (error) {
+        console.error('Error processing animation prompt:', error);
+        statusDiv.textContent = 'Error processing animation: ' + error.message;
+        setTimeout(() => document.body.removeChild(statusDiv), 3000);
       }
     });
 

@@ -231,13 +231,49 @@ export class SpeechController {
    * Processes a voice command
    * @param {string} command - The command to process
    */
-  processCommand(command) {
+  async processCommand(command) {
     // Display the command for user feedback
     this.showCommandFeedback(`Recognized: "${command}"`);
     
-    // TODO: Send to LLM for processing
-    // For now, use basic keyword detection
-    this.handleBasicCommands(command);
+    try {
+      // Check if we have an LLM controller available
+      if (window.llmController) {
+        // Show processing feedback
+        this.showCommandFeedback(`Processing: "${command}"...`, false);
+        
+        // Send to LLM for processing
+        const parsedCommand = await window.llmController.processPrompt(command);
+        console.log('LLM response:', parsedCommand);
+        
+        if (parsedCommand.error) {
+          // If LLM couldn't understand the command, fall back to basic command handling
+          console.log('LLM error, falling back to basic commands:', parsedCommand.error);
+          this.handleBasicCommands(command);
+          this.showCommandFeedback(`I didn't fully understand that. Trying basic command processing...`);
+        } else {
+          // Execute the parsed command
+          const result = window.llmController.executeCommand(parsedCommand);
+          console.log('Command execution result:', result);
+          
+          // Show feedback based on the result
+          if (result.success) {
+            this.showCommandFeedback(result.message);
+          } else {
+            this.showCommandFeedback(`Sorry, I couldn't complete that: ${result.message}`);
+          }
+        }
+      } else {
+        // No LLM controller available, fall back to basic commands
+        console.log('No LLM controller available, using basic commands');
+        this.handleBasicCommands(command);
+      }
+    } catch (error) {
+      console.error('Error processing command:', error);
+      this.showCommandFeedback('Sorry, I encountered an error processing your command');
+      
+      // Fall back to basic command handling
+      this.handleBasicCommands(command);
+    }
     
     // Clear any existing timer
     if (this._commandModeTimer) {
@@ -246,7 +282,7 @@ export class SpeechController {
     
     // After processing, continue listening for more commands
     this.updateStatus('Listening for another command...', true);
-    this.showCommandFeedback('Command processed. What else would you like to do?', false);
+    this.showCommandFeedback('What else would you like to do?', false);
     
     // Set a new timer to exit command mode if no more commands come in
     this._commandModeTimer = setTimeout(() => {

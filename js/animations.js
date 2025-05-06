@@ -3,7 +3,7 @@ import { renderInteractionPanel } from "./interactionPanel.js";
 
 export const animationHandlers = {
   birds: animateBirds,
-  apples: swayApples,
+  sway: swayApples,
   fix: fixObjects, // Static "animation" that just fixes objects in place
   hop: hopObjects // Simple up and down bouncing animation
 };
@@ -35,7 +35,7 @@ export function setObjectsToSameZIndex(objects, zIndex) {
 
 export function animate(prompt, canvas, selected, options = {}, { save = true } = {}) {
   const key = Object.keys(animationHandlers).find(k => new RegExp(k, 'i').test(prompt));
-  if (!key) return alert('Only birds, apples, hop, or fix are supported.');
+  if (!key) return alert('Only birds, sway, hop, or fix are supported.');
 
   // Debug mode
   const debugMode = options.debugMode || false;
@@ -726,7 +726,7 @@ export function swayApples(canvas, objs, { data = [], debugMode = false, preserv
     console.log("Animation data:", data);
   }
   
-  // If we have a group z-index, ensure all apples use it
+  // If we have a group z-index, ensure all sway use it
   const useGroupZIndex = groupZIndex !== undefined;
   const drift = 10;
   const rock = 8;
