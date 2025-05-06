@@ -47,12 +47,14 @@
   - added fixObject animation
   - added z-index ordering
 
-- still need inteactions, interactions view, more animations, buffed UI, ipad testing, whisper, and LLM
+- still need inteactions, interactions view, more animations, buffed UI, ipad testing, whisper, and LLM and instructions
 
 avoid, follow, orbit, 
 
-avoid works
-orbit
+avoid works for hop and birds
+orbit 
 join
 
 hop
+
+would be cool if there wer adjustable settings for both animations and interactions

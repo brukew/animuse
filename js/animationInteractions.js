@@ -19,16 +19,16 @@ export function processInteractions(canvas) {
 }
 
 /**
- * Process avoidance for a single bird with its current velocity
- * This is called for each bird during the animation update
+ * Process avoidance for a single animated object with its current movement
+ * This is called for each animated object during the animation update
  * @param {Object} canvas - The Fabric.js canvas object 
- * @param {Object} bird - The bird object
- * @param {Object} velocity - The bird's current velocity
+ * @param {Object} animatedObj - The animated object (bird, hop, etc.)
+ * @param {Object} velocity - The object's current velocity
  */
-export function predictAndProcessAvoidance(canvas, bird, velocity) {
-  if (!canvas.animationInteractions || !bird) return;
+export function predictAndProcessAvoidance(canvas, animatedObj, velocity) {
+  if (!canvas.animationInteractions || !animatedObj) return;
   
-  // Find all "avoid" interactions where birds are involved
+  // Find all "avoid" interactions
   const avoidInteractions = canvas.animationInteractions.filter(interaction => 
     interaction.type === 'avoid'
   );
@@ -44,25 +44,33 @@ export function predictAndProcessAvoidance(canvas, bird, velocity) {
     
     if (!sourceAnim || !targetAnim) return;
     
-    // See if this bird belongs to either animation
-    const birdInSource = isObjectInAnimation(bird, sourceAnim);
-    const birdInTarget = isObjectInAnimation(bird, targetAnim);
+    // See if this object belongs to either animation
+    const objInSource = isObjectInAnimation(animatedObj, sourceAnim);
+    const objInTarget = isObjectInAnimation(animatedObj, targetAnim);
     
-    // If bird is not in either animation, skip
-    if (!birdInSource && !birdInTarget) return;
+    // If object is not in either animation, skip
+    if (!objInSource && !objInTarget) return;
     
     // Determine which animation to avoid
-    const avoidAnim = birdInSource ? targetAnim : sourceAnim;
+    const avoidAnim = objInSource ? targetAnim : sourceAnim;
     
     // Get default parameters or use provided ones
     const boundaryDistance = parameters?.boundaryDistance || 30;
-    const bounceFactor = parameters?.bounceStrength || 1.0;
+    const hopFactor = parameters?.hopStrength || 1.0;
     
     // Get all objects from the animation to avoid
     const avoidObjects = getObjectsFromAnimation(canvas, avoidAnim);
     
-    // Apply boundary behavior for this bird
-    processAvoidanceForBird(bird, velocity, avoidObjects, boundaryDistance, bounceFactor);
+    // Check animation type and process accordingly
+    if (animatedObj.animationType === 'bird') {
+      // For birds, use the existing avoidance function
+      processAvoidanceForBird(animatedObj, velocity, avoidObjects, boundaryDistance, hopFactor);
+    } 
+    else if (animatedObj.animationType === 'hop') {
+      // For hop animations, handle direction change on collision
+      processAvoidanceForHop(animatedObj, avoidObjects, boundaryDistance);
+    }
+    // Add other animation types as needed
   });
 }
 
@@ -85,75 +93,99 @@ function processAvoidInteraction(canvas, interaction) {
   
   // Get default parameters or use provided ones
   const boundaryDistance = parameters?.boundaryDistance || 30;
-  const bounceFactor = parameters?.bounceStrength || 1.0; // How "bouncy" the walls are
+  const hopFactor = parameters?.hopStrength || 1.0; // How "bouncy" the walls are
   
-  // Find which animation is birds (either source or target could be)
-  const birdsAnim = sourceAnim.type === 'birds' ? sourceAnim : targetAnim;
-  const avoidAnim = birdsAnim === sourceAnim ? targetAnim : sourceAnim;
-  
-  // Get all objects from the animations
-  const birdsObjects = getBirdsFromAnimation(canvas, birdsAnim);
-  const avoidObjects = getObjectsFromAnimation(canvas, avoidAnim);
-  
-  if (birdsObjects.length === 0 || avoidObjects.length === 0) {
-    return; // Nothing to avoid or no birds
-  }
-  
-  // Apply boundary behavior to each bird
-  birdsObjects.forEach(bird => {
-    if (!bird || !bird._velocity) return;
+  // Handle different animation type combinations
+  if (sourceAnim.type === 'birds' || targetAnim.type === 'birds') {
+    // Birds avoid something
+    const birdsAnim = sourceAnim.type === 'birds' ? sourceAnim : targetAnim;
+    const avoidAnim = birdsAnim === sourceAnim ? targetAnim : sourceAnim;
     
-    // Easier reference to the bird's velocity
-    const vel = bird._velocity;
+    // Get all objects from the animations
+    const birdsObjects = getBirdsFromAnimation(canvas, birdsAnim);
+    const avoidObjects = getObjectsFromAnimation(canvas, avoidAnim);
     
-    // For each object to avoid (treat as wall/boundary)
-    avoidObjects.forEach(obj => {
-      // Calculate distance between bird and object
-      const distance = calculateDistance(bird, obj);
+    if (birdsObjects.length === 0 || avoidObjects.length === 0) {
+      return; // Nothing to avoid or no birds
+    }
+    
+    // Apply boundary behavior to each bird
+    birdsObjects.forEach(bird => {
+      if (!bird || !bird._velocity) return;
       
-      // If within boundary distance, apply wall response
-      if (distance < boundaryDistance) {
-        // Calculate normal vector (from object to bird)
-        const nx = bird.left - obj.left;
-        const ny = bird.top - obj.top;
+      // Easier reference to the bird's velocity
+      const vel = bird._velocity;
+      
+      // For each object to avoid (treat as wall/boundary)
+      avoidObjects.forEach(obj => {
+        // Calculate distance between bird and object
+        const distance = calculateDistance(bird, obj);
         
-        // Normalize the normal vector
-        const normalLength = Math.sqrt(nx * nx + ny * ny);
-        if (normalLength === 0) return; // Avoid division by zero
-        
-        const nnx = nx / normalLength;
-        const nny = ny / normalLength;
-        
-        // Calculate dot product of velocity and normal
-        const dotProduct = vel.x * nnx + vel.y * nny;
-        
-        // If the bird is moving toward the object
-        if (dotProduct < 0) {
-          // Reflect velocity vector across the normal (like a mirror)
-          // The formula is: v' = v - 2(v·n)n
-          const reflectionFactor = 2 * dotProduct * bounceFactor;
+        // If within boundary distance, apply wall response
+        if (distance < boundaryDistance) {
+          // Calculate normal vector (from object to bird)
+          const nx = bird.left - obj.left;
+          const ny = bird.top - obj.top;
           
-          // Calculate new velocity (with some randomness to avoid getting stuck)
-          const jitter = 0.1; // Small random factor to avoid perfect reflections
+          // Normalize the normal vector
+          const normalLength = Math.sqrt(nx * nx + ny * ny);
+          if (normalLength === 0) return; // Avoid division by zero
           
-          vel.x = vel.x - reflectionFactor * nnx + (Math.random() * jitter - jitter/2);
-          vel.y = vel.y - reflectionFactor * nny + (Math.random() * jitter - jitter/2);
+          const nnx = nx / normalLength;
+          const nny = ny / normalLength;
           
-          // Store reflection state to visualize if needed
-          bird._reflectionPoint = {
-            x: bird.left,
-            y: bird.top,
-            nx: nnx,
-            ny: nny
-          };
+          // Calculate dot product of velocity and normal
+          const dotProduct = vel.x * nnx + vel.y * nny;
           
-          // Move the bird slightly away from the boundary to prevent getting stuck
-          bird.left += nnx * 2;
-          bird.top += nny * 2;
+          // If the bird is moving toward the object
+          if (dotProduct < 0) {
+            // Reflect velocity vector across the normal (like a mirror)
+            // The formula is: v' = v - 2(v·n)n
+            const reflectionFactor = 2 * dotProduct * hopFactor;
+            
+            // Calculate new velocity (with some randomness to avoid getting stuck)
+            const jitter = 0.1; // Small random factor to avoid perfect reflections
+            
+            vel.x = vel.x - reflectionFactor * nnx + (Math.random() * jitter - jitter/2);
+            vel.y = vel.y - reflectionFactor * nny + (Math.random() * jitter - jitter/2);
+            
+            // Store reflection state to visualize if needed
+            bird._reflectionPoint = {
+              x: bird.left,
+              y: bird.top,
+              nx: nnx,
+              ny: nny
+            };
+            
+            // Move the bird slightly away from the boundary to prevent getting stuck
+            bird.left += nnx * 2;
+            bird.top += nny * 2;
+          }
         }
-      }
+      });
     });
-  });
+  } 
+  else if (sourceAnim.type === 'hop' || targetAnim.type === 'hop') {
+    // Hop animations avoid something
+    const hopAnim = sourceAnim.type === 'hop' ? sourceAnim : targetAnim;
+    const avoidAnim = hopAnim === sourceAnim ? targetAnim : sourceAnim;
+    
+    // Get all objects
+    const hopObjects = getObjectsFromAnimation(canvas, hopAnim);
+    const avoidObjects = getObjectsFromAnimation(canvas, avoidAnim);
+    
+    if (hopObjects.length === 0 || avoidObjects.length === 0) {
+      return; // Nothing to avoid or no hop objects
+    }
+    
+    // Process avoidance for hop objects
+    hopObjects.forEach(hopObj => {
+      if (!hopObj || hopObj.animationType !== 'hop') return;
+      
+      // Apply avoidance logic for each hop object
+      processAvoidanceForHop(hopObj, avoidObjects, boundaryDistance);
+    });
+  }
 }
 
 /**
@@ -221,9 +253,9 @@ function isObjectInAnimation(obj, animation) {
  * @param {Object} velocity - The bird's velocity
  * @param {Array} avoidObjects - Objects to avoid
  * @param {Number} boundaryDistance - How close the bird can get
- * @param {Number} bounceFactor - How bouncy the walls are
+ * @param {Number} hopFactor - How bouncy the walls are
  */
-function processAvoidanceForBird(bird, velocity, avoidObjects, boundaryDistance, bounceFactor) {
+function processAvoidanceForBird(bird, velocity, avoidObjects, boundaryDistance, hopFactor) {
   if (!bird || !velocity || !avoidObjects || avoidObjects.length === 0) return;
   
   // Predict bird's next position with lookahead
@@ -279,7 +311,7 @@ function processAvoidanceForBird(bird, velocity, avoidObjects, boundaryDistance,
       // Only reflect if moving toward the object (negative dot product)
       if (dotProduct < 0) {
         // Reflect velocity across the normal
-        const reflectionFactor = 2 * dotProduct * bounceFactor;
+        const reflectionFactor = 2 * dotProduct * hopFactor;
         
         // Add small random variation to avoid perfect reflection loops
         const jitter = 0.1;
@@ -295,12 +327,95 @@ function processAvoidanceForBird(bird, velocity, avoidObjects, boundaryDistance,
         bird.left += normal.x * 3;
         bird.top += normal.y * 3;
         
-        // Store bounce information for debugging
-        bird._lastBounce = {
+        // Store hop information for debugging
+        bird._lasthop = {
           time: Date.now(),
           point: { x: bird.left, y: bird.top },
           normal: normal,
           reflected: { x: velocity.x, y: velocity.y }
+        };
+      }
+    }
+  });
+}
+
+/**
+ * Process avoidance for a hopping object
+ * @param {Object} hopObj - The hopping object
+ * @param {Array} avoidObjects - Objects to avoid
+ * @param {Number} boundaryDistance - How close the hop object can get
+ */
+function processAvoidanceForHop(hopObj, avoidObjects, boundaryDistance) {
+  if (!hopObj || !avoidObjects || avoidObjects.length === 0) return;
+  
+  // For hop objects, we only care about horizontal movement and changing direction
+  // Predict next position based on current direction
+  const hopConfig = {
+    speed: 4, // Should match the speed in the animation function
+    boundaryPadding: 5
+  };
+  
+  // Predict where the hop object will be in the next few frames
+  const predictX = hopObj.left + (hopConfig.speed * hopObj.moveDirection * 3);
+  
+  // For each object to avoid
+  avoidObjects.forEach(obj => {
+    // Get bounding box for the object
+    const bbox = getObjectBoundingBox(obj);
+    if (!bbox) return;
+    
+    // Expand bounding box by boundary distance
+    const expandedBox = {
+      left: bbox.left - boundaryDistance,
+      top: bbox.top - boundaryDistance,
+      right: bbox.right + boundaryDistance,
+      bottom: bbox.bottom + boundaryDistance
+    };
+    
+    // Calculate vertical overlap (if any)
+    const verticalOverlap = 
+      hopObj.top + (hopObj.getScaledHeight() / 2) >= expandedBox.top &&
+      hopObj.top - (hopObj.getScaledHeight() / 2) <= expandedBox.bottom;
+    
+    // Check if predicted horizontal position will hit the object
+    // but only if there's vertical overlap (to avoid changing direction when object is above/below)
+    if (verticalOverlap) {
+      // Check if moving right and will hit the left edge of the object
+      if (hopObj.moveDirection > 0 && 
+          predictX + (hopObj.getScaledWidth() / 2) >= expandedBox.left && 
+          hopObj.left + (hopObj.getScaledWidth() / 2) < expandedBox.left) {
+        
+        // Reverse direction
+        hopObj.moveDirection = -1;
+        
+        // Move away from the boundary to prevent sticking
+        hopObj.left = expandedBox.left - (hopObj.getScaledWidth() / 2) - 2;
+        
+        // Store collision information for debugging
+        hopObj._lastCollision = {
+          time: Date.now(),
+          point: { x: hopObj.left, y: hopObj.top },
+          edge: 'left',
+          objectId: obj.id
+        };
+      }
+      // Check if moving left and will hit the right edge of the object
+      else if (hopObj.moveDirection < 0 && 
+               predictX - (hopObj.getScaledWidth() / 2) <= expandedBox.right && 
+               hopObj.left - (hopObj.getScaledWidth() / 2) > expandedBox.right) {
+        
+        // Reverse direction
+        hopObj.moveDirection = 1;
+        
+        // Move away from the boundary to prevent sticking
+        hopObj.left = expandedBox.right + (hopObj.getScaledWidth() / 2) + 2;
+        
+        // Store collision information for debugging
+        hopObj._lastCollision = {
+          time: Date.now(),
+          point: { x: hopObj.left, y: hopObj.top },
+          edge: 'right',
+          objectId: obj.id
         };
       }
     }

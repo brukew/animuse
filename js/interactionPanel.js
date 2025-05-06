@@ -483,7 +483,7 @@ function createInteractionsView(canvas) {
         return;
       }
       
-      // For avoid relationships, validate that at least one animation is birds
+      // For avoid relationships, validate that at least one animation is birds or hop
       if (type === 'avoid') {
         const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
         const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
@@ -493,11 +493,11 @@ function createInteractionsView(canvas) {
           return;
         }
         
-        const sourceisBirds = sourceAnim.type === 'birds';
-        const targetIsBirds = targetAnim.type === 'birds';
+        const sourceIsMoving = sourceAnim.type === 'birds' || sourceAnim.type === 'hop';
+        const targetIsMoving = targetAnim.type === 'birds' || targetAnim.type === 'hop';
         
-        if (!sourceisBirds && !targetIsBirds) {
-          alert('For "avoid" relationships, at least one animation must be birds.');
+        if (!sourceIsMoving && !targetIsMoving) {
+          alert('For "avoid" relationships, at least one animation must be a moving type (birds or hop).');
           return;
         }
       }
@@ -510,7 +510,7 @@ function createInteractionsView(canvas) {
         type,
         parameters: {
           boundaryDistance: 30, // Default radius for boundary/wall detection
-          bounceStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
+          hopStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
         },
         createdAt: Date.now()
       };
