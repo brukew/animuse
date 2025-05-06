@@ -139,8 +139,8 @@ export class StateHistory {
                 const originalAnimations = JSON.parse(JSON.stringify(animations));
                 this.replayAnimations(animations);
                 
-                // Restore interaction data
-                this.canvas.animationInteractions = interactions;
+                // Restore interaction data with all parameters
+                this.canvas.animationInteractions = JSON.parse(JSON.stringify(interactions));
                 
                 // Compare the loaded objects with the original animation data
                 setTimeout(() => {

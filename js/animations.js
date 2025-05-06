@@ -452,7 +452,87 @@ export function animateBirds(canvas, selected, { data = [], debugMode = false, p
       }
     }
 
+    // Store velocities on the birds to reference later
+    birds.forEach((b, i) => {
+      b._velocity = vel[i];
+    });
+
+    // Store the interactions module once it's loaded
+    let interactionsModule = null;
+    
+    // Try to load the interactions module immediately
+    import('./animationInteractions.js').then(module => {
+      interactionsModule = module;
+    }).catch(err => {
+      console.error("Failed to load animation interactions module:", err);
+    });
+    
     function update() {
+      birds.forEach((b, i) => {
+        let ax = 0, ay = 0, cx = 0, cy = 0, sx = 0, sy = 0, cnt = 0;
+
+        birds.forEach((o, j) => {
+          if (i === j) return;
+          const dx = o.left - b.left;
+          const dy = o.top - b.top;
+          const d = Math.hypot(dx, dy);
+          if (d < NEIGHBOR) {
+            ax += vel[j].x; ay += vel[j].y;
+            cx += o.left; cy += o.top;
+            sx -= dx / d; sy -= dy / d;
+            cnt++;
+          }
+        });
+
+        if (cnt) {
+          ax /= cnt; ay /= cnt;
+          cx = cx / cnt - b.left;
+          cy = cy / cnt - b.top;
+        }
+
+        vel[i].x += ax * ALIGN_W + cx * COH_W + sx * SEP_W;
+        vel[i].y += ay * ALIGN_W + cy * COH_W + sy * SEP_W;
+        
+        // Store the flocking velocity before applying boundary checks
+        b._flockingVelocity = { x: vel[i].x, y: vel[i].y };
+        
+        // Check if the bird will hit a boundary in the next frame
+        if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
+          // Apply boundary checks using a prediction of where the bird will be
+          const predictedPosition = {
+            left: b.left + vel[i].x,
+            top: b.top + vel[i].y
+          };
+          
+          // Store current position so the interaction module can check if bird is moving toward object
+          b._currentPosition = { left: b.left, top: b.top };
+          
+          // Pass the bird and its velocity to the interaction module for boundary checking
+          interactionsModule.predictAndProcessAvoidance(canvas, b, vel[i]);
+        }
+        
+        limit(vel[i]);
+
+        b.left += vel[i].x;
+        b.top += vel[i].y;
+        if (b.left < 0 || b.left > BOUNDS.w) {
+          vel[i].x *= -1;
+          b.left = Math.max(0, Math.min(BOUNDS.w, b.left));
+        }
+        if (b.top < 0 || b.top > BOUNDS.h) {
+          vel[i].y *= -1;
+          b.top = Math.max(0, Math.min(BOUNDS.h, b.top));
+        }
+
+        b.angle = Math.atan2(vel[i].y, vel[i].x) * 180 / Math.PI;
+        b.setCoords();
+      });
+
+      canvas.requestRenderAll();
+    }
+    
+    // Fallback function if the module import fails
+    function updateWithoutInteractions() {
       birds.forEach((b, i) => {
         let ax = 0, ay = 0, cx = 0, cy = 0, sx = 0, sy = 0, cnt = 0;
 

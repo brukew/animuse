@@ -448,6 +448,7 @@ function createInteractionsView(canvas) {
       <div class="input-group">
         <label for="relationshipSelect">Relationship:</label>
         <select id="relationshipSelect">
+          <option value="avoid">Avoid</option>
           <option value="triggers">Triggers</option>
           <option value="follows">Follows</option>
           <option value="controls">Controls</option>
@@ -482,12 +483,35 @@ function createInteractionsView(canvas) {
         return;
       }
       
+      // For avoid relationships, validate that at least one animation is birds
+      if (type === 'avoid') {
+        const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
+        const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
+        
+        if (!sourceAnim || !targetAnim) {
+          alert('Could not find one of the selected animations.');
+          return;
+        }
+        
+        const sourceisBirds = sourceAnim.type === 'birds';
+        const targetIsBirds = targetAnim.type === 'birds';
+        
+        if (!sourceisBirds && !targetIsBirds) {
+          alert('For "avoid" relationships, at least one animation must be birds.');
+          return;
+        }
+      }
+      
       // Create the new interaction
       const newInteraction = {
         id: `interaction_${Date.now()}`,
         sourceId,
         targetId,
         type,
+        parameters: {
+          boundaryDistance: 30, // Default radius for boundary/wall detection
+          bounceStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
+        },
         createdAt: Date.now()
       };
       
