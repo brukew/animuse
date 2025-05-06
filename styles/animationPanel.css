@@ -46,6 +46,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.animation-entry.selected {
+  border-color: #007bff;
+  background-color: #f0f7ff;
 }
   
   .entry-header {
@@ -125,6 +132,16 @@
   .delete-btn:hover,
   .edit-btn:hover {
     background: #eee;
+  }
+  
+  .select-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #0062cc;
+  }
+  
+  .select-btn.active:hover {
+    background: #0069d9;
   }
   
   .modal {
