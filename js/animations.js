@@ -4,7 +4,8 @@ import { renderInteractionPanel } from "./interactionPanel.js";
 export const animationHandlers = {
   birds: animateBirds,
   apples: swayApples,
-  fix: fixObjects // New static "animation" that just fixes objects in place
+  fix: fixObjects, // Static "animation" that just fixes objects in place
+  hop: hopObjects // Simple up and down bouncing animation
 };
 
 /**
@@ -34,7 +35,7 @@ export function setObjectsToSameZIndex(objects, zIndex) {
 
 export function animate(prompt, canvas, selected, options = {}, { save = true } = {}) {
   const key = Object.keys(animationHandlers).find(k => new RegExp(k, 'i').test(prompt));
-  if (!key) return alert('Only birds, apples, or fix are supported.');
+  if (!key) return alert('Only birds, apples, hop, or fix are supported.');
 
   // Debug mode
   const debugMode = options.debugMode || false;
@@ -1274,6 +1275,581 @@ export function fixObjects(canvas, objs, { data = [], debugMode = false, preserv
   // Return the fixed objects and data
   return {
     objects: fixedObjects,
+    data: processedData
+  };
+}
+
+/**
+ * Simple hop animation that makes objects hop up and down from their original position
+ * @param {Object} canvas - The fabric.js canvas object
+ * @param {Array} objs - Selected objects to animate
+ * @param {Object} options - Animation options
+ * @returns {Object} Animation data
+ */
+export function hopObjects(canvas, objs, { data = [], debugMode = false, preserveZIndex = false, groupZIndex, groupCreationOrder } = {}) {
+  // Debug info
+  if (debugMode) {
+    console.log("hopObjects called with options:", { 
+      preserveZIndex, 
+      groupZIndex,
+      groupCreationOrder,
+      dataLength: data.length,
+      selectedObjects: objs.length
+    });
+  }
+  
+  // hop animation configuration
+  const hopConfig = {
+    height: 40,           // Fixed hop height in pixels
+    speed: 4,             // Horizontal speed in pixels per update
+    duration: 0.5,        // Duration of one hop cycle in seconds
+    boundaryPadding: 5    // Padding from canvas edges
+  };
+  
+  // Group objects by their groupId
+  const groupedObjects = new Map(); // Map of groupId -> objects
+  const singleObjects = []; // Objects that are not part of any group
+  const animatedObjects = []; // Objects that will be animated
+  const processedData = []; // Data for animation tracking
+  const zIndices = new Map(); // Store z-index by group or individual object
+  
+  // First, categorize objects into groups or singles
+  objs.forEach(obj => {
+    if (obj.groupId) {
+      if (!groupedObjects.has(obj.groupId)) {
+        groupedObjects.set(obj.groupId, []);
+      }
+      groupedObjects.get(obj.groupId).push(obj);
+    } else {
+      singleObjects.push(obj);
+    }
+  });
+  
+  // Handle single objects (not in groups)
+  singleObjects.forEach(obj => {
+    // Determine z-index to use, with priority:
+    // 1. Data z-index from history
+    // 2. Group z-index if available 
+    // 3. Original object z-index
+    let zIndex;
+    const dataItem = data.find(d => d.id === obj.id);
+    
+    if (dataItem && dataItem.zIndex !== undefined) {
+      // Use z-index from history data
+      zIndex = dataItem.zIndex;
+    } else if (groupZIndex !== undefined) {
+      // Use the shared group z-index
+      zIndex = groupZIndex;
+    } else {
+      // Use the object's existing z-index
+      zIndex = obj.get('zIndex');
+    }
+    
+    // Store for data tracking
+    zIndices.set(obj.id, zIndex);
+    
+    // Apply settings including z-index
+    const hopOptions = {
+      originX: 'center',
+      originY: 'center',
+      selectable: true
+    };
+    
+    // Apply z-index if defined
+    if (zIndex !== undefined) {
+      hopOptions.zIndex = zIndex;
+    }
+    
+    // Apply group creation order if defined
+    if (groupCreationOrder !== undefined) {
+      hopOptions._creationOrder = groupCreationOrder;
+    }
+    
+    obj.set(hopOptions);
+    
+    // Store original position for the hop animation
+    obj.isAnimated = true;
+    obj.animationType = 'hop';
+    obj.originalTop = obj.top;
+    obj.originalLeft = obj.left;
+    obj.hopOffset = 0;
+    obj.sideOffset = 0;
+    obj.moveDirection = 1; // 1 for right, -1 for left
+
+    // Create a data entry for restoration
+    const dataEntry = {
+      id: obj.id,
+      zIndex: zIndex
+    };
+    
+    // Get canvas dimensions for boundary detection
+    const canvasBounds = {
+      width: canvas.getWidth(),
+      height: canvas.getHeight(),
+      left: 0,
+      right: canvas.getWidth()
+    };
+    
+    // Create vertical hop animation
+    const timeline = gsap.timeline({
+      repeat: -1
+    });
+    
+    // Add vertical hop animation
+    timeline.to(obj, {
+      hopOffset: hopConfig.height,
+      duration: hopConfig.duration / 2,
+      ease: "sine.out"
+    });
+    
+    // Add falling animation
+    timeline.to(obj, {
+      hopOffset: 0,
+      duration: hopConfig.duration / 2,
+      ease: "sine.in"
+    });
+    
+    // Store the interactions module once it's loaded
+    let interactionsModule = null;
+    
+    // Try to load the interactions module immediately
+    import('./animationInteractions.js').then(module => {
+      interactionsModule = module;
+    }).catch(err => {
+      console.error("Failed to load animation interactions module:", err);
+    });
+    
+    // Function to update position with boundary detection
+    const updatePosition = () => {
+      if (obj.dragging) return;
+      
+      // Apply vertical hop position
+      obj.set('top', obj.originalTop - obj.hopOffset);
+      
+      // Apply horizontal movement with boundary detection
+      const objWidth = obj.getScaledWidth();
+      const leftBound = canvasBounds.left + (objWidth / 2) + hopConfig.boundaryPadding;
+      const rightBound = canvasBounds.right - (objWidth / 2) - hopConfig.boundaryPadding;
+      
+      // Check for animation interactions first
+      if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
+        // Process interactions (this might change moveDirection if needed)
+        interactionsModule.predictAndProcessAvoidance(canvas, obj);
+      }
+      
+      // Calculate new position with current direction
+      const newLeft = obj.left + (hopConfig.speed * obj.moveDirection);
+      
+      // Check if it would hit a canvas boundary
+      if (newLeft <= leftBound) {
+        obj.left = leftBound;
+        obj.moveDirection = 1; // Switch to right when hitting left boundary
+      } else if (newLeft >= rightBound) {
+        obj.left = rightBound;
+        obj.moveDirection = -1; // Switch to left when hitting right boundary
+      } else {
+        // Normal movement if no boundary hit
+        obj.left = newLeft;
+      }
+      
+      // Update object on canvas
+      obj.setCoords();
+      canvas.requestRenderAll();
+    };
+    
+    // Add ticker for horizontal movement and boundary detection
+    gsap.ticker.add(updatePosition);
+    
+    // Store the timeline as the tween for consistency with other animations
+    const tween = timeline;
+    
+    // Store the ticker ID for pause/resume
+    obj._tickerId = updatePosition;
+    
+    // Create custom pause/resume methods
+    tween.customPause = function() {
+      // Pause vertical hop animation
+      this.pause();
+      
+      // Remove horizontal movement ticker
+      gsap.ticker.remove(obj._tickerId);
+      
+      // Save the current state when paused
+      obj._pausedState = {
+        top: obj.top,
+        left: obj.left,
+        originalTop: obj.originalTop,
+        originalLeft: obj.originalLeft,
+        hopOffset: obj.hopOffset,
+        moveDirection: obj.moveDirection,
+        zIndex: obj.get('zIndex')
+      };
+      
+      // Reset the manually moved flag
+      obj._manuallyMoved = false;
+    };
+    
+    tween.customResume = function() {
+      // Restore state if it was saved
+      if (obj._pausedState) {
+        // If the object was manually moved while paused
+        if (obj._manuallyMoved) {
+          // Update the original position to the current position
+          obj.originalTop = obj.top;
+          obj.originalLeft = obj.left;
+          obj.hopOffset = 0;
+          
+          // Force update
+          gsap.set(obj, { hopOffset: 0 });
+          obj.setCoords();
+          
+          // Kill existing vertical animation
+          this.kill();
+          
+          // Create new vertical hop animation
+          const newTimeline = gsap.timeline({
+            repeat: -1
+          });
+          
+          // Add new vertical animations
+          newTimeline.to(obj, {
+            hopOffset: hopConfig.height,
+            duration: hopConfig.duration / 2,
+            ease: "sine.out"
+          });
+          
+          newTimeline.to(obj, {
+            hopOffset: 0,
+            duration: hopConfig.duration / 2,
+            ease: "sine.in"
+          });
+          
+          // Add the ticker for horizontal movement
+          gsap.ticker.add(updatePosition);
+          obj._tickerId = updatePosition;
+          
+          // Copy custom methods to the new tween
+          newTimeline.customPause = this.customPause;
+          newTimeline.customResume = this.customResume;
+          obj.tween = newTimeline;
+        } else {
+          // Normal restore if not manually moved
+          obj.top = obj._pausedState.top;
+          obj.left = obj._pausedState.left;
+          obj.originalTop = obj._pausedState.originalTop;
+          obj.originalLeft = obj._pausedState.originalLeft;
+          obj.hopOffset = obj._pausedState.hopOffset;
+          obj.moveDirection = obj._pausedState.moveDirection;
+          
+          // Restore z-index if it was saved
+          if (obj._pausedState.zIndex !== undefined) {
+            obj.set('zIndex', obj._pausedState.zIndex);
+          }
+          obj.setCoords();
+          
+          // Resume vertical animation
+          this.resume();
+          
+          // Re-add the ticker for horizontal movement
+          gsap.ticker.add(updatePosition);
+          obj._tickerId = updatePosition;
+        }
+        
+        // Clear the paused state and manual move flag
+        delete obj._pausedState;
+        delete obj._manuallyMoved;
+      } else {
+        // Resume vertical animation
+        this.resume();
+        
+        // Re-add the ticker for horizontal movement
+        gsap.ticker.add(updatePosition);
+        obj._tickerId = updatePosition;
+      }
+    };
+    
+    obj.tween = tween;
+    animatedObjects.push(obj);
+    processedData.push(dataEntry);
+  });
+  
+  // Handle grouped objects - treat each group as one unit
+  groupedObjects.forEach((groupMembers, groupId) => {
+    // Determine z-index to use
+    let thisGroupZIndex;
+    const groupDataEntry = data.find(d => d.groupId === groupId);
+    
+    if (groupDataEntry && groupDataEntry.zIndex !== undefined) {
+      // Use z-index from history data
+      thisGroupZIndex = groupDataEntry.zIndex;
+    } else if (groupZIndex !== undefined) {
+      // Use the shared animation group z-index
+      thisGroupZIndex = groupZIndex;
+    } else {
+      // Calculate max z-index from members
+      thisGroupZIndex = setObjectsToSameZIndex(groupMembers);
+    }
+    
+    // Store the z-index for data tracking
+    zIndices.set(groupId, thisGroupZIndex);
+    
+    // Calculate center position
+    let centerX = 0, centerY = 0;
+    
+    groupMembers.forEach(obj => {
+      const point = obj.getCenterPoint();
+      centerX += point.x;
+      centerY += point.y;
+    });
+    centerX /= groupMembers.length;
+    centerY /= groupMembers.length;
+    
+    // Create group options
+    const groupOptions = {
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+      selectable: true
+    };
+    
+    // Apply z-index if defined
+    if (thisGroupZIndex !== undefined) {
+      groupOptions.zIndex = thisGroupZIndex;
+    }
+    
+    // Apply creation order if available
+    if (groupCreationOrder !== undefined) {
+      groupOptions._creationOrder = groupCreationOrder;
+    }
+    
+    // Create a Fabric.js Group from the objects
+    const fabricGroup = new fabric.Group(groupMembers, groupOptions);
+    
+    // Remove original objects from canvas
+    groupMembers.forEach(obj => canvas.remove(obj));
+    
+    // Initialize bouncing properties for the group
+    fabricGroup.isAnimated = true;
+    fabricGroup.animationType = 'hop';
+    fabricGroup.originalTop = fabricGroup.top;
+    fabricGroup.originalLeft = fabricGroup.left;
+    fabricGroup.hopOffset = 0;
+    fabricGroup.sideOffset = 0;
+    fabricGroup.moveDirection = 1; // 1 for right, -1 for left
+    fabricGroup.groupId = groupId;
+    fabricGroup.memberIds = groupMembers.map(obj => obj.id);
+    
+    // Get canvas dimensions for boundary detection
+    const canvasBounds = {
+      width: canvas.getWidth(),
+      height: canvas.getHeight(),
+      left: 0,
+      right: canvas.getWidth()
+    };
+    
+    // Create vertical hop animation
+    const timeline = gsap.timeline({
+      repeat: -1
+    });
+    
+    // Add vertical hop animation
+    timeline.to(fabricGroup, {
+      hopOffset: hopConfig.height,
+      duration: hopConfig.duration / 2,
+      ease: "sine.out"
+    });
+    
+    // Add falling animation
+    timeline.to(fabricGroup, {
+      hopOffset: 0,
+      duration: hopConfig.duration / 2,
+      ease: "sine.in"
+    });
+    
+    // Store the interactions module once it's loaded
+    let interactionsModule = null;
+    
+    // Try to load the interactions module immediately
+    import('./animationInteractions.js').then(module => {
+      interactionsModule = module;
+    }).catch(err => {
+      console.error("Failed to load animation interactions module:", err);
+    });
+    
+    // Function to update position with boundary detection
+    const updatePosition = () => {
+      if (fabricGroup.dragging) return;
+      
+      // Apply vertical hop position
+      fabricGroup.set('top', fabricGroup.originalTop - fabricGroup.hopOffset);
+      
+      // Apply horizontal movement with boundary detection
+      const groupWidth = fabricGroup.getScaledWidth();
+      const leftBound = canvasBounds.left + (groupWidth / 2) + hopConfig.boundaryPadding;
+      const rightBound = canvasBounds.right - (groupWidth / 2) - hopConfig.boundaryPadding;
+      
+      // Check for animation interactions first
+      if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
+        // Process interactions (this might change moveDirection if needed)
+        interactionsModule.predictAndProcessAvoidance(canvas, fabricGroup);
+      }
+      
+      // Calculate new position with current direction
+      const newLeft = fabricGroup.left + (hopConfig.speed * fabricGroup.moveDirection);
+      
+      // Check if it would hit a canvas boundary
+      if (newLeft <= leftBound) {
+        fabricGroup.left = leftBound;
+        fabricGroup.moveDirection = 1; // Switch to right when hitting left boundary
+      } else if (newLeft >= rightBound) {
+        fabricGroup.left = rightBound;
+        fabricGroup.moveDirection = -1; // Switch to left when hitting right boundary
+      } else {
+        // Normal movement if no boundary hit
+        fabricGroup.left = newLeft;
+      }
+      
+      // Update object on canvas
+      fabricGroup.setCoords();
+      canvas.requestRenderAll();
+    };
+    
+    // Add ticker for horizontal movement and boundary detection
+    gsap.ticker.add(updatePosition);
+    
+    // Store the timeline as the tween for consistency with other animations
+    const tween = timeline;
+    
+    // Store the ticker ID for pause/resume
+    fabricGroup._tickerId = updatePosition;
+    
+    // Create custom pause/resume methods for groups
+    tween.customPause = function() {
+      // Pause vertical hop animation
+      this.pause();
+      
+      // Remove horizontal movement ticker
+      gsap.ticker.remove(fabricGroup._tickerId);
+      
+      // Save the current state when paused
+      fabricGroup._pausedState = {
+        top: fabricGroup.top,
+        left: fabricGroup.left,
+        originalTop: fabricGroup.originalTop,
+        originalLeft: fabricGroup.originalLeft,
+        hopOffset: fabricGroup.hopOffset,
+        moveDirection: fabricGroup.moveDirection,
+        zIndex: fabricGroup.get('zIndex')
+      };
+      
+      // Reset the manually moved flag
+      fabricGroup._manuallyMoved = false;
+    };
+    
+    tween.customResume = function() {
+      // Restore state if it was saved
+      if (fabricGroup._pausedState) {
+        // If the group was manually moved while paused
+        if (fabricGroup._manuallyMoved) {
+          // Update the original position to the current position
+          fabricGroup.originalTop = fabricGroup.top;
+          fabricGroup.originalLeft = fabricGroup.left;
+          fabricGroup.hopOffset = 0;
+          
+          // Force update
+          gsap.set(fabricGroup, { hopOffset: 0 });
+          fabricGroup.setCoords();
+          
+          // Kill existing vertical animation
+          this.kill();
+          
+          // Create new vertical hop animation
+          const newTimeline = gsap.timeline({
+            repeat: -1
+          });
+          
+          // Add new vertical animations
+          newTimeline.to(fabricGroup, {
+            hopOffset: hopConfig.height,
+            duration: hopConfig.duration / 2,
+            ease: "sine.out"
+          });
+          
+          newTimeline.to(fabricGroup, {
+            hopOffset: 0,
+            duration: hopConfig.duration / 2,
+            ease: "sine.in"
+          });
+          
+          // Add the ticker for horizontal movement
+          gsap.ticker.add(updatePosition);
+          fabricGroup._tickerId = updatePosition;
+          
+          // Copy custom methods to the new tween
+          newTimeline.customPause = this.customPause;
+          newTimeline.customResume = this.customResume;
+          fabricGroup.tween = newTimeline;
+        } else {
+          // Normal restore if not manually moved
+          fabricGroup.top = fabricGroup._pausedState.top;
+          fabricGroup.left = fabricGroup._pausedState.left;
+          fabricGroup.originalTop = fabricGroup._pausedState.originalTop;
+          fabricGroup.originalLeft = fabricGroup._pausedState.originalLeft;
+          fabricGroup.hopOffset = fabricGroup._pausedState.hopOffset;
+          fabricGroup.moveDirection = fabricGroup._pausedState.moveDirection;
+          
+          // Restore z-index if it was saved
+          if (fabricGroup._pausedState.zIndex !== undefined) {
+            fabricGroup.set('zIndex', fabricGroup._pausedState.zIndex);
+          }
+          fabricGroup.setCoords();
+          
+          // Resume vertical animation
+          this.resume();
+          
+          // Re-add the ticker for horizontal movement
+          gsap.ticker.add(updatePosition);
+          fabricGroup._tickerId = updatePosition;
+        }
+        
+        // Clear the paused state and manual move flag
+        delete fabricGroup._pausedState;
+        delete fabricGroup._manuallyMoved;
+      } else {
+        // Resume vertical animation
+        this.resume();
+        
+        // Re-add the ticker for horizontal movement
+        gsap.ticker.add(updatePosition);
+        fabricGroup._tickerId = updatePosition;
+      }
+    };
+    
+    fabricGroup.tween = tween;
+    
+    // Add the group to the canvas
+    canvas.add(fabricGroup);
+    fabricGroup.setCoords();
+    
+    animatedObjects.push(fabricGroup);
+    
+    // Add data entry for the group
+    processedData.push({
+      id: fabricGroup.id ||= fabric.Object.__uidCounter++,
+      isGroup: true,
+      groupId: groupId,
+      memberIds: fabricGroup.memberIds,
+      zIndex: fabricGroup.get('zIndex') || thisGroupZIndex || 0
+    });
+  });
+  
+  // Make sure canvas sorts objects by z-index
+  canvas._objects.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  
+  // Return the animated objects and data
+  return {
+    objects: animatedObjects,
     data: processedData
   };
 }
