@@ -1,6 +1,7 @@
 import { setupCanvas } from './canvasSetup.js';
 import { Toolbar } from './toolbar.js';
 import { enableGestures } from './gestures.js';
+import { renderInteractionPanel } from './interactionPanel.js';
 
 fabric.Object.prototype.toObject = (function(toObject) {
     return function(propertiesToInclude) {
@@ -20,4 +21,7 @@ window.addEventListener('load', () => {
   // Expose the toolbar for group button updates
   window.toolbar = toolbar;
   enableGestures(canvas);
+  
+  // Initialize the interaction panel
+  renderInteractionPanel(canvas);
 });

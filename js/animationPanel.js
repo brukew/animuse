@@ -1,5 +1,6 @@
 import { deleteSel } from './toolbar.js';
 import { animate } from './animations.js';
+import { renderInteractionPanel } from './interactionPanel.js';
 
 export function createAnimationEntry(anim, canvas) {
     const entry = document.createElement('div');
@@ -46,6 +47,9 @@ export function createAnimationEntry(anim, canvas) {
           anim.updatedAt = Date.now();
           anim._titleCustomized = true; // Mark that title has been manually customized
           titleText.textContent = newTitle;
+          
+          // Update the interaction panel with the new title
+          renderInteractionPanel(canvas);
           
           // Save to history after title change
           setTimeout(() => canvas.history.saveState(), 20);
@@ -205,6 +209,8 @@ export function createAnimationEntry(anim, canvas) {
         if (!anim._titleCustomized) {
           anim.title = newPrompt;
           titleText.textContent = newPrompt;
+          // Update the interaction panel with the new title
+          renderInteractionPanel(canvas);
         }
         
         // Prompt is updated, no need to update any time info
@@ -363,6 +369,7 @@ export function renderAnimationPanel(canvas) {
       // If no objects found, just remove the animation entry
       canvas.activeAnimations = (canvas.activeAnimations || []).filter(a => a.id !== anim.id);
       renderAnimationPanel(canvas);
+      renderInteractionPanel(canvas);
       return;
     }
   
@@ -382,6 +389,7 @@ export function renderAnimationPanel(canvas) {
       // Make sure the animation is removed from the list
       canvas.activeAnimations = (canvas.activeAnimations || []).filter(a => a.id !== anim.id);
       renderAnimationPanel(canvas);
+      renderInteractionPanel(canvas);
     }, 20);
   }
   

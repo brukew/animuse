@@ -39,53 +39,52 @@
 
 .interaction-entry {
   background: white;
-  border-radius: 10px;
-  padding: 10px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
 }
 
-/* Animation info styles */
-.animation-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.interaction-entry.dragging {
+  cursor: grabbing;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  transform: scale(1.02);
+  opacity: 0.8;
+  z-index: 100;
 }
 
-.animation-name {
+.interaction-entry.drag-over {
+  border-top: 2px solid #3498db;
+}
+
+.drag-placeholder {
+  height: 30px;
+  border: 2px dashed #ccc;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: #f8f8f8;
+}
+
+.animation-title {
   font-weight: bold;
   font-size: 14px;
-}
-
-.animation-meta {
-  font-size: 12px;
-  color: #666;
-}
-
-/* Object info styles */
-.object-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.object-name {
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.object-meta {
-  font-size: 12px;
-  color: #666;
+  flex-grow: 1;
+  margin-right: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Control button styles */
 .layer-controls {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin-top: 3px;
 }
 
@@ -93,9 +92,15 @@
   background: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 3px 8px;
+  padding: 3px 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
+}
+
+.layer-controls button.front-btn,
+.layer-controls button.back-btn {
+  font-size: 11px;
+  padding: 3px 4px;
 }
 
 .layer-controls button:hover:not(:disabled) {
