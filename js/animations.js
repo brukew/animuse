@@ -510,6 +510,11 @@ export function animateBirds(canvas, selected, { data = [], debugMode = false, p
           
           // Pass the bird and its velocity to the interaction module for boundary checking
           interactionsModule.predictAndProcessAvoidance(canvas, b, vel[i]);
+          
+          // Also check for orbit interactions
+          if (interactionsModule.predictAndProcessOrbit) {
+            interactionsModule.predictAndProcessOrbit(canvas, b);
+          }
         }
         
         limit(vel[i]);
@@ -1140,6 +1145,14 @@ export function fixObjects(canvas, objs, { data = [], debugMode = false, preserv
     }
   });
   
+  // Import the interactions module if needed for orbit
+  let interactionsModule = null;
+  import('./animationInteractions.js').then(module => {
+    interactionsModule = module;
+  }).catch(err => {
+    console.error("Failed to load animation interactions module:", err);
+  });
+  
   // Handle single objects
   singleObjects.forEach(obj => {
     // Determine z-index to use
@@ -1174,30 +1187,94 @@ export function fixObjects(canvas, objs, { data = [], debugMode = false, preserv
     obj.isAnimated = true;
     obj.animationType = 'fix';
     
-    // Create a dummy tween that does nothing
-    // This ensures compatibility with code that expects a tween object
-    const dummyTween = {
-      pause: () => {},
-      resume: () => {},
+    // Create an update function that applies any orbit movement
+    const updateFn = () => {
+      // Skip if being dragged
+      if (obj.dragging) return;
+      
+      // Check for orbit interactions
+      if (interactionsModule && interactionsModule.predictAndProcessOrbit && 
+          canvas.animationInteractions && canvas.animationInteractions.length > 0) {
+        interactionsModule.predictAndProcessOrbit(canvas, obj);
+      }
+    };
+    
+    // Add the update function to the GSAP ticker
+    gsap.ticker.add(updateFn);
+    
+    // Create a tween object that supports orbit
+    const tween = {
+      pause: () => {
+        gsap.ticker.remove(updateFn);
+      },
+      resume: () => {
+        gsap.ticker.add(updateFn);
+      },
       customPause: function() {
-        // Save the state but don't actually pause anything
+        // Remove the update function
+        gsap.ticker.remove(updateFn);
+        
+        // Save the current state
         obj._pausedState = {
-          zIndex: obj.get('zIndex')
+          left: obj.left,
+          top: obj.top,
+          zIndex: obj.get('zIndex'),
+          orbitData: obj._orbitData ? { ...obj._orbitData } : undefined
         };
+        
+        // Reset the manually moved flag
+        obj._manuallyMoved = false;
       },
       customResume: function() {
         // Restore state if it was saved
         if (obj._pausedState) {
-          // Restore z-index if it was saved
-          if (obj._pausedState.zIndex !== undefined) {
-            obj.set('zIndex', obj._pausedState.zIndex);
+          // If the object was manually moved while paused
+          if (obj._manuallyMoved) {
+            // If it was in an orbit, update the orbit data with new position
+            if (obj._pausedState.orbitData) {
+              // Calculate new angle based on current position relative to center
+              const centerX = obj._pausedState.orbitData.centerX;
+              const centerY = obj._pausedState.orbitData.centerY;
+              const dx = obj.left - centerX;
+              const dy = obj.top - centerY;
+              const initialAngle = Math.atan2(dy, dx);
+              const initialDistance = Math.sqrt(dx * dx + dy * dy);
+              
+              // Update orbit data
+              obj._orbitData = {
+                ...obj._pausedState.orbitData,
+                angle: initialAngle,
+                radius: initialDistance
+              };
+            }
+          } else {
+            // If not manually moved, restore position and orbit data
+            obj.left = obj._pausedState.left;
+            obj.top = obj._pausedState.top;
+            
+            // Restore z-index if it was saved
+            if (obj._pausedState.zIndex !== undefined) {
+              obj.set('zIndex', obj._pausedState.zIndex);
+            }
+            
+            // Restore orbit data if it was saved
+            if (obj._pausedState.orbitData) {
+              obj._orbitData = { ...obj._pausedState.orbitData };
+            }
           }
+          
+          // Clear the paused state and manual move flag
           delete obj._pausedState;
+          delete obj._manuallyMoved;
         }
-      }
+        
+        // Add the update function back
+        gsap.ticker.add(updateFn);
+      },
+      _updateFn: updateFn // Store the update function for cleanup
     };
     
-    obj.tween = dummyTween;
+    obj.tween = tween;
     fixedObjects.push(obj);
     
     // Add data entry
@@ -1207,7 +1284,7 @@ export function fixObjects(canvas, objs, { data = [], debugMode = false, preserv
     });
   });
   
-  // Handle grouped objects - keep them grouped
+  // Handle grouped objects - create proper Fabric.js groups for better orbit handling
   groupedObjects.forEach((groupMembers, groupId) => {
     // Determine z-index to use
     let groupZIndexValue;
@@ -1227,44 +1304,141 @@ export function fixObjects(canvas, objs, { data = [], debugMode = false, preserv
     // Store the z-index for data tracking
     zIndices.set(groupId, groupZIndexValue);
     
-    // Apply the same z-index to all group members
+    // Calculate center position for the group
+    let centerX = 0, centerY = 0;
     groupMembers.forEach(obj => {
-      obj.set('zIndex', groupZIndexValue);
-      
-      // Mark as "fixed" animation
-      obj.isAnimated = true;
-      obj.animationType = 'fix';
-      
-      // Create a dummy tween
-      const dummyTween = {
-        pause: () => {},
-        resume: () => {},
-        customPause: function() {
-          obj._pausedState = {
-            zIndex: obj.get('zIndex')
-          };
-        },
-        customResume: function() {
-          if (obj._pausedState) {
-            if (obj._pausedState.zIndex !== undefined) {
-              obj.set('zIndex', obj._pausedState.zIndex);
-            }
-            delete obj._pausedState;
-          }
-        }
-      };
-      
-      obj.tween = dummyTween;
+      const point = obj.getCenterPoint();
+      centerX += point.x;
+      centerY += point.y;
     });
+    centerX /= groupMembers.length;
+    centerY /= groupMembers.length;
     
-    // Add all group members to fixedObjects
-    fixedObjects.push(...groupMembers);
+    // Create group options
+    const groupOptions = {
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+      selectable: true,
+      zIndex: groupZIndexValue
+    };
+    
+    // Create a Fabric.js Group from the objects
+    const fabricGroup = new fabric.Group(groupMembers, groupOptions);
+    
+    // Remove original objects from canvas
+    groupMembers.forEach(obj => canvas.remove(obj));
+    
+    // Mark as "fixed" animation
+    fabricGroup.isAnimated = true;
+    fabricGroup.animationType = 'fix';
+    fabricGroup.groupId = groupId;
+    fabricGroup.memberIds = groupMembers.map(obj => obj.id);
+    
+    // Create an update function for orbit
+    const updateFn = () => {
+      // Skip if being dragged
+      if (fabricGroup.dragging) return;
+      
+      // Check for orbit interactions
+      if (interactionsModule && interactionsModule.predictAndProcessOrbit && 
+          canvas.animationInteractions && canvas.animationInteractions.length > 0) {
+        interactionsModule.predictAndProcessOrbit(canvas, fabricGroup);
+      }
+    };
+    
+    // Add the update function to the GSAP ticker
+    gsap.ticker.add(updateFn);
+    
+    // Create a tween object with orbit support
+    const tween = {
+      pause: () => {
+        gsap.ticker.remove(updateFn);
+      },
+      resume: () => {
+        gsap.ticker.add(updateFn);
+      },
+      customPause: function() {
+        // Remove the update function
+        gsap.ticker.remove(updateFn);
+        
+        // Save the current state
+        fabricGroup._pausedState = {
+          left: fabricGroup.left,
+          top: fabricGroup.top,
+          angle: fabricGroup.angle,
+          zIndex: fabricGroup.get('zIndex'),
+          orbitData: fabricGroup._orbitData ? { ...fabricGroup._orbitData } : undefined
+        };
+        
+        // Reset the manually moved flag
+        fabricGroup._manuallyMoved = false;
+      },
+      customResume: function() {
+        // Restore state if it was saved
+        if (fabricGroup._pausedState) {
+          // If the group was manually moved while paused
+          if (fabricGroup._manuallyMoved) {
+            // If it was in an orbit, update the orbit data with new position
+            if (fabricGroup._pausedState.orbitData) {
+              // Calculate new angle based on current position relative to center
+              const centerX = fabricGroup._pausedState.orbitData.centerX;
+              const centerY = fabricGroup._pausedState.orbitData.centerY;
+              const dx = fabricGroup.left - centerX;
+              const dy = fabricGroup.top - centerY;
+              const initialAngle = Math.atan2(dy, dx);
+              const initialDistance = Math.sqrt(dx * dx + dy * dy);
+              
+              // Update orbit data
+              fabricGroup._orbitData = {
+                ...fabricGroup._pausedState.orbitData,
+                angle: initialAngle,
+                radius: initialDistance
+              };
+            }
+          } else {
+            // If not manually moved, restore position and orbit data
+            fabricGroup.left = fabricGroup._pausedState.left;
+            fabricGroup.top = fabricGroup._pausedState.top;
+            fabricGroup.angle = fabricGroup._pausedState.angle;
+            
+            // Restore z-index if it was saved
+            if (fabricGroup._pausedState.zIndex !== undefined) {
+              fabricGroup.set('zIndex', fabricGroup._pausedState.zIndex);
+            }
+            
+            // Restore orbit data if it was saved
+            if (fabricGroup._pausedState.orbitData) {
+              fabricGroup._orbitData = { ...fabricGroup._pausedState.orbitData };
+            }
+          }
+          
+          // Clear the paused state and manual move flag
+          delete fabricGroup._pausedState;
+          delete fabricGroup._manuallyMoved;
+        }
+        
+        // Add the update function back
+        gsap.ticker.add(updateFn);
+      },
+      _updateFn: updateFn // Store the update function for cleanup
+    };
+    
+    fabricGroup.tween = tween;
+    
+    // Add the group to the canvas
+    canvas.add(fabricGroup);
+    
+    // Add fabricGroup to fixedObjects
+    fixedObjects.push(fabricGroup);
     
     // Add a group data entry
     processedData.push({
+      id: fabricGroup.id ||= fabric.Object.__uidCounter++,
       isGroup: true,
       groupId: groupId,
-      memberIds: groupMembers.map(obj => obj.id),
+      memberIds: fabricGroup.memberIds,
       zIndex: groupZIndexValue
     });
   });
@@ -1435,6 +1609,18 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
         // Process interactions (this might change moveDirection if needed)
         interactionsModule.predictAndProcessAvoidance(canvas, obj);
+        
+        // Also check for orbit interactions
+        if (interactionsModule.predictAndProcessOrbit) {
+          interactionsModule.predictAndProcessOrbit(canvas, obj);
+          
+          // If object is in an orbit, skip normal horizontal movement
+          if (obj._orbitData) {
+            obj.setCoords();
+            canvas.requestRenderAll();
+            return;
+          }
+        }
       }
       
       // Calculate new position with current direction
@@ -1693,6 +1879,18 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
         // Process interactions (this might change moveDirection if needed)
         interactionsModule.predictAndProcessAvoidance(canvas, fabricGroup);
+        
+        // Also check for orbit interactions
+        if (interactionsModule.predictAndProcessOrbit) {
+          interactionsModule.predictAndProcessOrbit(canvas, fabricGroup);
+          
+          // If object is in an orbit, skip normal horizontal movement
+          if (fabricGroup._orbitData) {
+            fabricGroup.setCoords();
+            canvas.requestRenderAll();
+            return;
+          }
+        }
       }
       
       // Calculate new position with current direction

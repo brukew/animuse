@@ -449,6 +449,7 @@ function createInteractionsView(canvas) {
         <label for="relationshipSelect">Relationship:</label>
         <select id="relationshipSelect">
           <option value="avoid">Avoid</option>
+          <option value="orbit">Orbit</option>
           <option value="triggers">Triggers</option>
           <option value="follows">Follows</option>
           <option value="controls">Controls</option>
@@ -502,16 +503,97 @@ function createInteractionsView(canvas) {
         }
       }
       
+      // For orbit relationships, validate the source and target animations
+      if (type === 'orbit') {
+        const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
+        const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
+        
+        if (!sourceAnim) {
+          alert('Could not find the source animation.');
+          return;
+        }
+        
+        if (!targetAnim) {
+          alert('Could not find the target animation.');
+          return;
+        }
+        
+        // Any animated object can orbit, but we'll show a helpful message
+        if (sourceAnim.type === 'fix') {
+          if (!confirm('A "fix" animation will now orbit. This will override its static behavior. Continue?')) {
+            return;
+          }
+        }
+        
+        // Validate that target is a fixed animation
+        if (targetAnim.type !== 'fix') {
+          if (!confirm('For best results, target should be a "fix" animation. Continue anyway?')) {
+            return;
+          }
+        }
+      }
+      
       // Create the new interaction
+      // For orbit interactions, always use the target animation as the orbit center
+      let orbitParameters = {};
+      if (type === 'orbit') {
+        const targetAnim = canvas.activeAnimations.find(a => a.id === targetId);
+        
+        if (targetAnim && targetAnim.data && targetAnim.data.length > 0) {
+          // Always use the target animation's position as the orbit center
+          const targetObjects = getObjectsFromAnimation(canvas, targetAnim);
+          if (targetObjects.length > 0) {
+            // Calculate the center of all target objects
+            let centerX = 0, centerY = 0;
+            targetObjects.forEach(obj => {
+              centerX += obj.left;
+              centerY += obj.top;
+            });
+            centerX /= targetObjects.length;
+            centerY /= targetObjects.length;
+            
+            // Use the target's center with target tracking enabled
+            orbitParameters = {
+              orbitSpeed: 0.5, // Degrees per frame
+              orbitRadius: undefined, // Use current distance if undefined
+              centerX: centerX,
+              centerY: centerY,
+              orbitTarget: targetId, // Store reference to the target we're orbiting
+              trackTarget: true // Enable dynamic center point tracking
+            };
+          } else {
+            // Fallback to canvas center, but this shouldn't happen with validation
+            orbitParameters = {
+              orbitSpeed: 0.5,
+              orbitRadius: undefined,
+              centerX: canvas.getWidth() / 2,
+              centerY: canvas.getHeight() / 2
+            };
+            console.warn("Target animation has no objects to orbit around.");
+          }
+        } else {
+          // If no valid target, use canvas center, but this shouldn't happen with validation
+          orbitParameters = {
+            orbitSpeed: 0.5,
+            orbitRadius: undefined,
+            centerX: canvas.getWidth() / 2,
+            centerY: canvas.getHeight() / 2
+          };
+          console.warn("Invalid target animation for orbit.");
+        }
+      }
+      
       const newInteraction = {
         id: `interaction_${Date.now()}`,
         sourceId,
         targetId,
         type,
-        parameters: {
-          boundaryDistance: 30, // Default radius for boundary/wall detection
-          hopStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
-        },
+        parameters: type === 'orbit' 
+          ? orbitParameters
+          : {
+              boundaryDistance: 30, // Default radius for boundary/wall detection
+              hopStrength: 1.0 // How bouncy the walls are (1.0 = perfect reflection)
+            },
         createdAt: Date.now()
       };
       
@@ -533,6 +615,23 @@ function createInteractionsView(canvas) {
   });
   
   return container;
+}
+
+/**
+ * Helper function to get all objects for a given animation
+ * @param {Object} canvas - The Fabric.js canvas
+ * @param {Object} animation - The animation data object
+ * @returns {Array} - Array of objects
+ */
+function getObjectsFromAnimation(canvas, animation) {
+  if (!animation || !animation.data) return [];
+  
+  // Get all IDs from the animation data
+  const animObjectIds = new Set();
+  animation.data.forEach(d => animObjectIds.add(d.id));
+  
+  // Find matching objects on the canvas
+  return canvas.getObjects().filter(obj => animObjectIds.has(obj.id));
 }
 
 export function renderInteractionPanel(canvas) {

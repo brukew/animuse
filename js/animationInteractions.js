@@ -13,6 +13,8 @@ export function processInteractions(canvas) {
   canvas.animationInteractions.forEach(interaction => {
     if (interaction.type === 'avoid') {
       processAvoidInteraction(canvas, interaction);
+    } else if (interaction.type === 'orbit') {
+      processOrbitInteraction(canvas, interaction);
     }
     // Add other interaction types here as they're implemented
   });
@@ -490,4 +492,318 @@ function getObjectBoundingBox(obj) {
   }
   
   return null;
+}
+
+/**
+ * Process an "orbit" interaction between animations
+ * @param {Object} canvas - The Fabric.js canvas object
+ * @param {Object} interaction - The interaction data object
+ */
+function processOrbitInteraction(canvas, interaction) {
+  const { sourceId, targetId, parameters } = interaction;
+  
+  // Get the source animation (the one that will orbit)
+  const sourceAnim = canvas.activeAnimations.find(a => a.id === sourceId);
+  
+  if (!sourceAnim) {
+    console.warn('Could not find source animation for orbit interaction:', interaction);
+    return;
+  }
+  
+  // Get default parameters or use provided ones
+  const orbitSpeed = parameters?.orbitSpeed || 0.5; // Degrees per frame
+  const orbitRadius = parameters?.orbitRadius; // If undefined, use distance from center
+  
+  // Get the target animation and calculate the orbit center
+  let centerX, centerY;
+  let targetAnim = null;
+  let targetObjects = [];
+  const trackTarget = parameters?.trackTarget || false;
+  
+  if (parameters?.orbitTarget) {
+    // Try to find the target animation
+    targetAnim = canvas.activeAnimations.find(a => a.id === parameters.orbitTarget);
+    if (targetAnim) {
+      // Get all objects for this animation
+      targetObjects = getObjectsFromAnimation(canvas, targetAnim);
+      if (targetObjects.length > 0) {
+        // Calculate the center of all target objects
+        let sumX = 0, sumY = 0;
+        targetObjects.forEach(obj => {
+          sumX += obj.left;
+          sumY += obj.top;
+        });
+        centerX = sumX / targetObjects.length;
+        centerY = sumY / targetObjects.length;
+      } else {
+        // Fallback to static center from parameters or canvas center
+        centerX = parameters?.centerX !== undefined ? parameters.centerX : canvas.getWidth() / 2;
+        centerY = parameters?.centerY !== undefined ? parameters.centerY : canvas.getHeight() / 2;
+      }
+    } else {
+      // Fallback to static center
+      centerX = parameters?.centerX !== undefined ? parameters.centerX : canvas.getWidth() / 2;
+      centerY = parameters?.centerY !== undefined ? parameters.centerY : canvas.getHeight() / 2;
+    }
+  } else {
+    // Use the static center point from parameters or canvas center
+    centerX = parameters?.centerX !== undefined ? parameters.centerX : canvas.getWidth() / 2;
+    centerY = parameters?.centerY !== undefined ? parameters.centerY : canvas.getHeight() / 2;
+  }
+  
+  // Store the target animation information for continuous tracking
+  const orbitInfo = {
+    centerX,
+    centerY,
+    targetAnim: targetAnim ? targetAnim.id : null,
+    trackTarget,
+    targetObjects: targetObjects.map(obj => obj.id)
+  };
+  
+  // Get all objects from the source animation
+  const orbitObjects = getObjectsFromAnimation(canvas, sourceAnim);
+  
+  if (orbitObjects.length === 0) {
+    return; // No objects to animate
+  }
+  
+  // Process each object in the animation
+  orbitObjects.forEach(obj => {
+    // Skip if object is being dragged
+    if (obj.dragging) return;
+    
+    // Skip objects that shouldn't be animated
+    if (!obj.isAnimated) return;
+    
+    // Initialize orbit data for the object if not already done
+    if (!obj._orbitData) {
+      // Calculate initial angle based on current position relative to center
+      const dx = obj.left - centerX;
+      const dy = obj.top - centerY;
+      const initialAngle = Math.atan2(dy, dx);
+      const initialDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Store the original angle of the object
+      const originalAngle = obj.angle || 0;
+      
+      obj._orbitData = {
+        angle: initialAngle,
+        radius: orbitRadius || initialDistance, // Use provided radius or current distance
+        centerX: centerX,
+        centerY: centerY,
+        speed: orbitSpeed,
+        originalAngle: originalAngle, // Store original orientation
+        targetAnim: orbitInfo.targetAnim, // Store target animation ID
+        trackTarget: orbitInfo.trackTarget, // Store if we should track target position
+        targetObjects: orbitInfo.targetObjects // Store target object IDs
+      };
+      
+      // Store original position if needed later
+      if (!obj.originalOrbitLeft) {
+        obj.originalOrbitLeft = obj.left;
+        obj.originalOrbitTop = obj.top;
+      }
+    }
+    
+    // Update the angle
+    obj._orbitData.angle += obj._orbitData.speed * Math.PI / 180; // Convert speed to radians
+    
+    // If we're tracking a target, update the center point
+    if (obj._orbitData.trackTarget && obj._orbitData.targetAnim) {
+      // Find the target animation
+      const targetAnim = canvas.activeAnimations.find(a => a.id === obj._orbitData.targetAnim);
+      
+      if (targetAnim) {
+        // Get all live target objects
+        const targetObjIds = new Set(obj._orbitData.targetObjects || []);
+        const liveTargetObjects = canvas.getObjects().filter(o => targetObjIds.has(o.id));
+        
+        if (liveTargetObjects.length > 0) {
+          // Calculate the updated center position
+          let sumX = 0, sumY = 0;
+          liveTargetObjects.forEach(targetObj => {
+            sumX += targetObj.left;
+            sumY += targetObj.top;
+          });
+          
+          // Update the center point with the new target position
+          obj._orbitData.centerX = sumX / liveTargetObjects.length;
+          obj._orbitData.centerY = sumY / liveTargetObjects.length;
+        }
+      }
+    }
+    
+    // Calculate new position using the updated center point
+    const newX = obj._orbitData.centerX + Math.cos(obj._orbitData.angle) * obj._orbitData.radius;
+    const newY = obj._orbitData.centerY + Math.sin(obj._orbitData.angle) * obj._orbitData.radius;
+    
+    // Update object position
+    obj.set({
+      left: newX,
+      top: newY
+    });
+    
+    // Handle different animation types for visual orientation during orbit
+    if (obj.animationType === 'bird') {
+      // For birds, point them in the direction of movement (tangent to orbit)
+      const angle = (obj._orbitData.angle + Math.PI/2) * 180 / Math.PI;
+      obj.set('angle', angle);
+    } else if (obj.type === 'group' || obj.isGroupRepresentative) {
+      // For groups, maintain their original orientation
+      obj.set('angle', obj._orbitData.originalAngle);
+    }
+    
+    obj.setCoords();
+  });
+}
+
+/**
+ * Predicts and processes orbit movement for a single object
+ * @param {Object} canvas - The Fabric.js canvas 
+ * @param {Object} obj - The object to orbit
+ */
+export function predictAndProcessOrbit(canvas, obj) {
+  if (!canvas.animationInteractions || !obj) return;
+  
+  // Find orbit interactions involving this object
+  const orbitInteractions = canvas.animationInteractions.filter(interaction => 
+    interaction.type === 'orbit' && isObjectInAnimation(obj, canvas.activeAnimations.find(a => a.id === interaction.sourceId))
+  );
+  
+  if (orbitInteractions.length === 0) return;
+  
+  // Process each relevant interaction
+  orbitInteractions.forEach(interaction => {
+    const { parameters } = interaction;
+    
+    // Skip if object is being dragged
+    if (obj.dragging) return;
+    
+    // Get defaults or use provided parameters
+    const orbitSpeed = parameters?.orbitSpeed || 0.5;
+    const orbitRadius = parameters?.orbitRadius;
+    
+    // Check if we have a target to orbit around (dynamic center point)
+    let centerX, centerY;
+    if (parameters?.orbitTarget) {
+      // Try to find the target animation
+      const targetAnim = canvas.activeAnimations.find(a => a.id === parameters.orbitTarget);
+      if (targetAnim) {
+        // Get all objects for this animation
+        const targetObjects = getObjectsFromAnimation(canvas, targetAnim);
+        if (targetObjects.length > 0) {
+          // Calculate the center of all target objects (dynamic center point)
+          let sumX = 0, sumY = 0;
+          targetObjects.forEach(obj => {
+            sumX += obj.left;
+            sumY += obj.top;
+          });
+          centerX = sumX / targetObjects.length;
+          centerY = sumY / targetObjects.length;
+        } else {
+          // Fallback to static center from parameters or canvas center
+          centerX = parameters?.centerX !== undefined ? parameters.centerX : canvas.getWidth() / 2;
+          centerY = parameters?.centerY !== undefined ? parameters.centerY : canvas.getHeight() / 2;
+        }
+      } else {
+        // Fallback to static center
+        centerX = parameters?.centerX !== undefined ? parameters.centerX : canvas.getWidth() / 2;
+        centerY = parameters?.centerY !== undefined ? parameters.centerY : canvas.getHeight() / 2;
+      }
+    } else {
+      // Use the static center point from parameters or canvas center
+      centerX = parameters?.centerX !== undefined ? parameters.centerX : canvas.getWidth() / 2;
+      centerY = parameters?.centerY !== undefined ? parameters.centerY : canvas.getHeight() / 2;
+    }
+    
+    // Get the target information
+    let targetAnim = null;
+    let targetObjects = [];
+    const trackTarget = parameters?.trackTarget || false;
+    
+    if (parameters?.orbitTarget) {
+      targetAnim = canvas.activeAnimations.find(a => a.id === parameters.orbitTarget);
+      if (targetAnim) {
+        targetObjects = getObjectsFromAnimation(canvas, targetAnim).map(obj => obj.id);
+      }
+    }
+    
+    // Initialize orbit data if not present
+    if (!obj._orbitData) {
+      const dx = obj.left - centerX;
+      const dy = obj.top - centerY;
+      const initialAngle = Math.atan2(dy, dx);
+      const initialDistance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Store the original angle
+      const originalAngle = obj.angle || 0;
+      
+      obj._orbitData = {
+        angle: initialAngle,
+        radius: orbitRadius || initialDistance,
+        centerX: centerX,
+        centerY: centerY,
+        speed: orbitSpeed,
+        originalAngle: originalAngle,
+        targetAnim: parameters?.orbitTarget || null,
+        trackTarget: trackTarget,
+        targetObjects: targetObjects
+      };
+      
+      if (!obj.originalOrbitLeft) {
+        obj.originalOrbitLeft = obj.left;
+        obj.originalOrbitTop = obj.top;
+      }
+    }
+    
+    // Update the angle
+    obj._orbitData.angle += obj._orbitData.speed * Math.PI / 180;
+    
+    // If we're tracking a target, update the center point
+    if (obj._orbitData.trackTarget && obj._orbitData.targetAnim) {
+      // Find the target animation
+      const targetAnim = canvas.activeAnimations.find(a => a.id === obj._orbitData.targetAnim);
+      
+      if (targetAnim) {
+        // Get all live target objects
+        const targetObjIds = new Set(obj._orbitData.targetObjects || []);
+        const liveTargetObjects = canvas.getObjects().filter(o => targetObjIds.has(o.id));
+        
+        if (liveTargetObjects.length > 0) {
+          // Calculate the updated center position
+          let sumX = 0, sumY = 0;
+          liveTargetObjects.forEach(targetObj => {
+            sumX += targetObj.left;
+            sumY += targetObj.top;
+          });
+          
+          // Update the center point with the new target position
+          obj._orbitData.centerX = sumX / liveTargetObjects.length;
+          obj._orbitData.centerY = sumY / liveTargetObjects.length;
+        }
+      }
+    }
+    
+    // Calculate new position using the updated center point
+    const newX = obj._orbitData.centerX + Math.cos(obj._orbitData.angle) * obj._orbitData.radius;
+    const newY = obj._orbitData.centerY + Math.sin(obj._orbitData.angle) * obj._orbitData.radius;
+    
+    // Update object position
+    obj.set({
+      left: newX,
+      top: newY
+    });
+    
+    // Handle different animation types for visual orientation during orbit
+    if (obj.animationType === 'bird') {
+      // For birds, point them in the direction of movement (tangent to orbit)
+      const angle = (obj._orbitData.angle + Math.PI/2) * 180 / Math.PI;
+      obj.set('angle', angle);
+    } else if (obj.type === 'group' || obj.isGroupRepresentative) {
+      // For groups, maintain their original orientation
+      obj.set('angle', obj._orbitData.originalAngle);
+    }
+    
+    obj.setCoords();
+  });
 }
