@@ -152,6 +152,8 @@ export class SpeechController {
    */
   stop() {
     if (!this.recognition) return;
+
+    this.hideCommandFeedback();
     
     this.isListening = false;
     this.isProcessingCommand = false;

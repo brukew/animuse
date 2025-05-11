@@ -72,6 +72,7 @@ canvas {
 }
 
 button {
+  font-size: 15px;;
   border-radius: 8px;
   padding: 6px 12px;
   background: var(--button-bg);
@@ -89,10 +90,11 @@ button:active {
 }
 
 .panel-header {
-  font-size: 18px;
+  font-size: 25px;
   font-weight: 600;
   color: #333;
   margin-bottom: 10px;
+  margin-top:0px;
   text-align: center;
   background: var(--accent-gradient);
   -webkit-background-clip: text;

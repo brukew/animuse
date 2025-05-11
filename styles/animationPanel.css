@@ -28,11 +28,6 @@
   gap: 8px; /* optional spacing between title and controls */
 }
 
-.animation-panel-header h4 {
-  margin: 0;
-  font-size: 16px;
-}
-
 .sort-controls {
   display: flex;
   align-items: center;
@@ -41,10 +36,14 @@
 }
 
 .sort-controls select {
-  padding: 3px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 6px 12px;
+  font-size: 15px;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  background: white;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 #animation-entries {

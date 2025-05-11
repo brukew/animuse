@@ -85,7 +85,7 @@ For example:
 - For "stationary trees": "Trees"
 
 Special command patterns to handle:
-1. "Animate the current selection as X" or "Make the selection X" - If the user refers to animating the currently selected objects, use format #1 above with the appropriate animation type based on X.
+1. "Animate the current selection as X" or "Make the selection X" - If the user refers to animating the currently selected objects, use format #1 above with the appropriate animation type based on X. (there are selected objects even if you cant see it sometimes)
 
 2. "Select the X" - Use the context to find all objects that match the description X and respond with a "select" action.
 
@@ -623,13 +623,16 @@ Do not include any text outside the JSON. Only respond with valid JSON. Do not e
         })
       : [];
 
-    const selectedObjects = this.canvas.getActiveObject()
+      const selectedObjects = this.canvas.getActiveObjects?.() || [];
+      const count = selectedObjects.length + 1;
+
+      console.log('Selected objects count:', count);
     
     return {
       objects: objects,
       animations: animations,
       interactions: interactions,
-      selectedObjects: selectedObjects
+      selectedObjectsCount: count
     };
   }
 
