@@ -64,50 +64,9 @@ would be cool if there wer adjustable settings for both animations and interacti
 
 ccording to our previous plan, here's what's next on the list:
 
-  1. Integrate an LLM to process commands:
-    - Create an API endpoint for sending voice transcriptions to an LLM
-    - Configure the LLM to understand animation-specific language
-    - Parse the LLM responses into structured commands that your app can execute
-  2. Expand command functionality:
-    - Implement commands to create new interactions between animations
-    - Add support for specific animation selection by name/type
-    - Enable deletion commands for specific animations
-    - Add commands to modify animation properties (color, speed, etc.)
-  3. Enhanced contextual awareness:
-    - Track canvas state to provide context to the LLM
-    - Maintain conversation history for multi-turn commands
-    - Enable commands that refer to previous actions ("make that one blue")
-  4. UI improvements:
-    - Add a visual indicator for which animations are being referenced
-    - Implement better feedback when commands are executed
-    - Add an optional transcript display of voice commands and responses
-
-  The most logical next step would be to implement the LLM integration. This would involve setting up a way to send voice commands to an LLM service (like
-  OpenAI's API), processing its responses, and mapping them to specific actions in your animation system.
-
-
-
-  Next Steps for AniMuse Voice Control
-
-  1. LLM Integration
-    - Set up API endpoint to connect with an LLM service (OpenAI, Anthropic, etc.)
-    - Create a function to send user voice commands to the LLM for natural language understanding
-    - Implement a parser to convert LLM responses into structured commands
-  2. Enhanced Voice Commands
-    - Add animation type-specific commands (e.g., "select all birds", "delete sway")
-    - Implement commands to create interactions between animations (avoid, orbit)
-    - Add commands for modifying animation properties (change color, speed)
-  3. Context Awareness
-    - Track canvas state to provide context to the LLM
-    - Support reference commands like "make that one blue" or "delete these"
-    - Maintain conversation history for multi-turn interactions
-  4. UI Improvements
-    - Add visual feedback for which animations are being referenced
-    - Create a help modal with available commands
-    - Add a transcript display option to show commands and responses
-  5. Reliability Improvements
-    - Fine-tune command recognition accuracy
-    - Handle edge cases for selections and deletions
-    - Improve error handling and user feedback
-
-  These enhancements will create a more natural and powerful voice interaction experience for AniMuse users.
+need to do
+- resizing
+- hop correct
+- add directions
+- any other bugs
+- write paper

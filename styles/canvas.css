@@ -3,9 +3,6 @@
   --primary-color: #7b61ff;
   --secondary-color: #ff6ec4;
   --text-dark: #222;
-  --panel-bg: #fdfdfd;
-  --button-bg: #f5f5f5;
-  --shadow: 0 4px 8px rgba(0,0,0,0.08);
 }
 
 body {
@@ -94,24 +91,15 @@ canvas {
   box-shadow: var(--shadow);
   cursor: crosshair;
   touch-action: none;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  /* object-fit: contain; */
 }
 
 #canvasWrapper {
-  flex-grow: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   position: relative;
   z-index: 0;
-  width: 100%;
-  height: calc(100vh - 200px); /* Account for toolbar and margins */
-  min-height: 400px; /* Minimum height to ensure usability */
-  padding: 20px;
-  box-sizing: border-box;
-  margin: 0 240px; /* Account for panel widths */
 }
 
 button {
@@ -275,19 +263,11 @@ button:active {
   #interactionPanel {
     width: 200px;
   }
-  
-  #canvasWrapper {
-    margin: 0 200px;
-  }
 }
 
 @media (max-width: 768px) {
   #animationPanel,
   #interactionPanel {
     width: 180px;
-  }
-  
-  #canvasWrapper {
-    margin: 0 180px;
   }
 }
