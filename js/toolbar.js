@@ -27,6 +27,66 @@ export class Toolbar {
 
     this.clearActive = () => [this.drawBtn, this.selectBtn].forEach(b => b.classList.remove('active'));
 
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Only trigger if not typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      // Check for Ctrl/Cmd key (metaKey is Cmd on Mac, ctrlKey is Ctrl on Windows/Linux)
+      const isCtrlOrCmd = e.metaKey || e.ctrlKey;
+      
+      if (isCtrlOrCmd) {
+        switch (e.key.toLowerCase()) {
+          case 'b':
+            e.preventDefault();
+            this.setDrawMode();
+            break;
+          case 'e':
+            e.preventDefault();
+            this.setSelectMode();
+            break;
+          case 'm':
+            e.preventDefault();
+            // Trigger animate button click
+            get('animateBtn').click();
+            break;
+          case 'g':
+            e.preventDefault();
+            // Trigger group button click
+            this.groupBtn.click();
+            break;
+          case 'k':
+            e.preventDefault();
+            this.toggleAnimations();
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              // Ctrl/Cmd + Shift + Z for redo
+              if (!this.redoBtn.disabled) {
+                this.canvas.history.redo();
+              }
+            } else {
+              // Ctrl/Cmd + Z for undo
+              if (!this.undoBtn.disabled) {
+                this.canvas.history.undo();
+              }
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            // Ctrl/Cmd + Y as alternative for redo
+            if (!this.redoBtn.disabled) {
+              this.canvas.history.redo();
+            }
+            break;
+        }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        this.deleteSelected();
+      }
+    });
+
     this.drawBtn.addEventListener('click', () => this.setDrawMode());
     this.selectBtn.addEventListener('click', () => this.setSelectMode());
     this.deleteBtn.addEventListener('click', () => this.deleteSelected());
