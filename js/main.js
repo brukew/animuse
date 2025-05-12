@@ -4,6 +4,7 @@ import { enableGestures } from './gestures.js';
 import { renderInteractionPanel } from './interactionPanel.js';
 import { SpeechController } from './speechRecognition.js';
 import { LLMController } from './llmController.js';
+import { initCanvasResize } from './canvasResize.js';
 
 fabric.Object.prototype.toObject = (function(toObject) {
     return function(propertiesToInclude) {
@@ -27,8 +28,14 @@ window.addEventListener('load', () => {
   window.toolbar = toolbar;
   enableGestures(canvas);
   
+  // Initialize canvas resize functionality
+  initCanvasResize(canvas);
+  
   // Initialize the interaction panel
   renderInteractionPanel(canvas);
+  
+  // Initialize panel collapse functionality
+  initializePanelCollapse();
   
   // Initialize LLM controller
   const llmController = new LLMController(canvas);
@@ -68,3 +75,40 @@ window.addEventListener('load', () => {
     speechEnabled = !speechEnabled;
   });
 });
+
+// Panel collapse functionality
+function initializePanelCollapse() {
+  const animationPanel = document.getElementById('animationPanel');
+  const interactionPanel = document.getElementById('interactionPanel');
+  const animationCollapse = document.querySelector('.animation-collapse');
+  const interactionCollapse = document.querySelector('.interaction-collapse');
+  
+  if (animationCollapse && animationPanel) {
+    animationCollapse.addEventListener('click', () => {
+      console.log('animationCollapse', animationCollapse);
+      animationPanel.classList.toggle('collapsed');
+      updateCanvasWrapperWidth();
+    });
+  }
+  
+  if (interactionCollapse && interactionPanel) {
+    interactionCollapse.addEventListener('click', () => {
+      interactionPanel.classList.toggle('collapsed');
+      updateCanvasWrapperWidth();
+    });
+  }
+}
+
+function updateCanvasWrapperWidth() {
+  const canvasWrapper = document.getElementById('canvasWrapper');
+  const leftPanel = document.getElementById('animationPanel');
+  const rightPanel = document.getElementById('interactionPanel');
+  
+  const leftWidth = leftPanel.classList.contains('collapsed') ? 24 : leftPanel.offsetWidth;
+  const rightWidth = rightPanel.classList.contains('collapsed') ? 24 : rightPanel.offsetWidth;
+  
+  canvasWrapper.style.width = `calc(100% - ${leftWidth + rightWidth}px)`;
+  
+  // Log for debugging
+  console.log('Canvas wrapper width updated:', canvasWrapper.style.width);
+}

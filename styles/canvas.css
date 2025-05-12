@@ -85,21 +85,28 @@ body {
   color: #fff;
 }
 
-canvas {
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  cursor: crosshair;
-  touch-action: none;
-  /* object-fit: contain; */
-}
-
 #canvasWrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   position: relative;
   z-index: 0;
+  width: calc(100% - 480px); /* Account for both panels (240px each) */
+  height: calc(100vh - 150px);
+  overflow: hidden;
+  padding: 15px;
+  margin: 0 auto; /* Center the wrapper */
+}
+
+canvas {
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  cursor: crosshair;
+  touch-action: none;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 button {
@@ -143,6 +150,7 @@ button:active {
   overflow-y: auto;
   padding: 10px;
   z-index: 1;
+  transition: transform 0.3s ease;
 }
 
 #animationPanel {
@@ -153,6 +161,107 @@ button:active {
 #interactionPanel {
   right: 0;
   border-left: 1px solid #ccc;
+}
+
+/* Panel collapse buttons */
+.panel-collapse-btn {
+  position: fixed;
+  top: 50%;
+  width: 24px;
+  height: 48px;
+  background: white;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  transform: translateY(-50%);
+}
+
+.animation-collapse {
+  left: 240px;
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+}
+
+.interaction-collapse {
+  right: 240px;
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+  box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+}
+
+.panel-collapse-btn::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px;
+  border-color: transparent;
+  transition: all 0.3s ease;
+}
+
+.animation-collapse::before {
+  border-right-color: #666;
+  margin-right: 2px;
+}
+
+.interaction-collapse::before {
+  border-left-color: #666;
+  margin-left: 2px;
+}
+
+/* Collapsed state */
+#animationPanel.collapsed {
+  transform: translateX(-100%);
+}
+
+#interactionPanel.collapsed {
+  transform: translateX(100%);
+}
+
+/* Update button positions when panels are collapsed */
+#animationPanel.collapsed ~ .animation-collapse {
+  left: 0;
+}
+
+#interactionPanel.collapsed ~ .interaction-collapse {
+  right: 0;
+}
+
+#animationPanel.collapsed ~ .animation-collapse::before {
+  border-right-color: transparent;
+  border-left-color: #666;
+  margin-right: 0;
+  margin-left: 2px;
+}
+
+#interactionPanel.collapsed ~ .interaction-collapse::before {
+  border-left-color: transparent;
+  border-right-color: #666;
+  margin-left: 0;
+  margin-right: 2px;
+}
+
+/* Hover effects */
+.panel-collapse-btn:hover {
+  background: #f0f0f0;
+}
+
+.animation-collapse:hover {
+  box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+}
+
+.interaction-collapse:hover {
+  box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+}
+
+.panel-collapse-btn:hover::before {
+  border-left-color: #333;
+  border-right-color: #333;
 }
 
 .animation-entry {
@@ -257,11 +366,15 @@ button:active {
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
-/* Add media queries for responsive design */
+/* Media query for responsive collapse */
 @media (max-width: 1200px) {
   #animationPanel,
   #interactionPanel {
     width: 200px;
+  }
+  
+  #canvasWrapper {
+    width: calc(100% - 400px);
   }
 }
 
@@ -269,5 +382,14 @@ button:active {
   #animationPanel,
   #interactionPanel {
     width: 180px;
+  }
+  
+  #canvasWrapper {
+    width: calc(100% - 360px);
+  }
+  
+  .buttons button {
+    padding: 3px 8px;
+    font-size: 14px;
   }
 }

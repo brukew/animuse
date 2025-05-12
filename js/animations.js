@@ -33,6 +33,61 @@ export function setObjectsToSameZIndex(objects, zIndex) {
   return zIndex;
 }
 
+/**
+ * Manages canvas bounds and provides methods to access them
+ * @param {Object} canvas - The Fabric.js canvas object
+ * @returns {Object} Bounds management object
+ */
+function createBoundsManager(canvas) {
+  return {
+    /**
+     * Get the current canvas bounds
+     * @returns {Object} Bounds object with width, height, left, right, top, bottom
+     */
+    getBounds() {
+      return {
+        width: canvas.getWidth(),
+        height: canvas.getHeight(),
+        left: 0,
+        right: canvas.getWidth(),
+        top: 0,
+        bottom: canvas.getHeight()
+      };
+    },
+
+    /**
+     * Get scaled bounds for an object
+     * @param {Object} obj - The object to get scaled bounds for
+     * @param {Number} boundaryDistance - Additional padding to add
+     * @returns {Object} Scaled bounds object
+     */
+    getScaledBounds(obj, boundaryDistance = 0) {
+      const bounds = this.getBounds();
+      const objWidth = obj.getScaledWidth();
+      const objHeight = obj.getScaledHeight();
+      
+      return {
+        left: bounds.left + (objWidth / 2) + boundaryDistance,
+        right: bounds.right - (objWidth / 2) - boundaryDistance,
+        top: bounds.top + (objHeight / 2) + boundaryDistance,
+        bottom: bounds.bottom - (objHeight / 2) - boundaryDistance
+      };
+    },
+
+    /**
+     * Check if a point is within bounds
+     * @param {Number} x - X coordinate
+     * @param {Number} y - Y coordinate
+     * @returns {Boolean} True if point is within bounds
+     */
+    isPointInBounds(x, y) {
+      const bounds = this.getBounds();
+      return x >= bounds.left && x <= bounds.right && 
+             y >= bounds.top && y <= bounds.bottom;
+    }
+  };
+}
+
 export function animate(prompt, canvas, selected, options = {}, { save = true } = {}) {
   const key = Object.keys(animationHandlers).find(k => new RegExp(k, 'i').test(prompt));
   if (!key) return alert('Only birds, sway, hop, or fix are supported.');
@@ -439,11 +494,12 @@ export function animateBirds(canvas, selected, { data = [], debugMode = false, p
 
   function setupFlocking(birds) {
     const vel = birds.map(() => ({ x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 }));
-
     const NEIGHBOR = 60;
     const MAX_SPEED = 2.5;
     const ALIGN_W = 0.05, COH_W = 0.02, SEP_W = 0.1;
-    const BOUNDS = { w: canvas.getWidth(), h: canvas.getHeight() };
+    
+    // Create bounds manager
+    const boundsManager = createBoundsManager(canvas);
 
     function limit(v) {
       const m = Math.hypot(v.x, v.y);
@@ -469,6 +525,8 @@ export function animateBirds(canvas, selected, { data = [], debugMode = false, p
     });
     
     function update() {
+      const bounds = boundsManager.getBounds();
+      
       birds.forEach((b, i) => {
         let ax = 0, ay = 0, cx = 0, cy = 0, sx = 0, sy = 0, cnt = 0;
 
@@ -521,13 +579,17 @@ export function animateBirds(canvas, selected, { data = [], debugMode = false, p
 
         b.left += vel[i].x;
         b.top += vel[i].y;
-        if (b.left < 0 || b.left > BOUNDS.w) {
-          vel[i].x *= -1;
-          b.left = Math.max(0, Math.min(BOUNDS.w, b.left));
-        }
-        if (b.top < 0 || b.top > BOUNDS.h) {
-          vel[i].y *= -1;
-          b.top = Math.max(0, Math.min(BOUNDS.h, b.top));
+        
+        // Use bounds manager to check boundaries
+        if (!boundsManager.isPointInBounds(b.left, b.top)) {
+          if (b.left < bounds.left || b.left > bounds.right) {
+            vel[i].x *= -1;
+            b.left = Math.max(bounds.left, Math.min(bounds.right, b.left));
+          }
+          if (b.top < bounds.top || b.top > bounds.bottom) {
+            vel[i].y *= -1;
+            b.top = Math.max(bounds.top, Math.min(bounds.bottom, b.top));
+          }
         }
 
         b.angle = Math.atan2(vel[i].y, vel[i].x) * 180 / Math.PI;
@@ -567,13 +629,13 @@ export function animateBirds(canvas, selected, { data = [], debugMode = false, p
 
         b.left += vel[i].x;
         b.top += vel[i].y;
-        if (b.left < 0 || b.left > BOUNDS.w) {
+        if (b.left < 0 || b.left > boundsManager.getBounds().right) {
           vel[i].x *= -1;
-          b.left = Math.max(0, Math.min(BOUNDS.w, b.left));
+          b.left = Math.max(0, Math.min(boundsManager.getBounds().right, b.left));
         }
-        if (b.top < 0 || b.top > BOUNDS.h) {
+        if (b.top < 0 || b.top > boundsManager.getBounds().bottom) {
           vel[i].y *= -1;
-          b.top = Math.max(0, Math.min(BOUNDS.h, b.top));
+          b.top = Math.max(0, Math.min(boundsManager.getBounds().bottom, b.top));
         }
 
         b.angle = Math.atan2(vel[i].y, vel[i].x) * 180 / Math.PI;
@@ -1088,7 +1150,7 @@ export function swayApples(canvas, objs, { data = [], debugMode = false, preserv
       isGroup: true,
       groupId: groupId,
       memberIds: fabricGroup.memberIds,
-      zIndex: fabricGroup.get('zIndex') || groupZIndex || 0 // Include z-index in data
+      zIndex: fabricGroup.get('zIndex') || thisGroupZIndex || 0 // Include z-index in data
     });
   });
 
@@ -1564,6 +1626,9 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       right: canvas.getWidth()
     };
     
+    // Create bounds manager
+    const boundsManager = createBoundsManager(canvas);
+
     // Create vertical hop animation
     const timeline = gsap.timeline({
       repeat: -1
@@ -1600,10 +1665,8 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       // Apply vertical hop position
       obj.set('top', obj.originalTop - obj.hopOffset);
       
-      // Apply horizontal movement with boundary detection
-      const objWidth = obj.getScaledWidth();
-      const leftBound = canvasBounds.left + (objWidth / 2) + hopConfig.boundaryPadding;
-      const rightBound = canvasBounds.right - (objWidth / 2) - hopConfig.boundaryPadding;
+      // Get scaled bounds for this object
+      const bounds = boundsManager.getScaledBounds(obj, hopConfig.boundaryPadding);
       
       // Check for animation interactions first
       if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
@@ -1627,11 +1690,11 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       const newLeft = obj.left + (hopConfig.speed * obj.moveDirection);
       
       // Check if it would hit a canvas boundary
-      if (newLeft <= leftBound) {
-        obj.left = leftBound;
+      if (newLeft <= bounds.left) {
+        obj.left = bounds.left;
         obj.moveDirection = 1; // Switch to right when hitting left boundary
-      } else if (newLeft >= rightBound) {
-        obj.left = rightBound;
+      } else if (newLeft >= bounds.right) {
+        obj.left = bounds.right;
         obj.moveDirection = -1; // Switch to left when hitting right boundary
       } else {
         // Normal movement if no boundary hit
@@ -1834,6 +1897,9 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       right: canvas.getWidth()
     };
     
+    // Create bounds manager
+    const boundsManager = createBoundsManager(canvas);
+
     // Create vertical hop animation
     const timeline = gsap.timeline({
       repeat: -1
@@ -1870,10 +1936,8 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       // Apply vertical hop position
       fabricGroup.set('top', fabricGroup.originalTop - fabricGroup.hopOffset);
       
-      // Apply horizontal movement with boundary detection
-      const groupWidth = fabricGroup.getScaledWidth();
-      const leftBound = canvasBounds.left + (groupWidth / 2) + hopConfig.boundaryPadding;
-      const rightBound = canvasBounds.right - (groupWidth / 2) - hopConfig.boundaryPadding;
+      // Get scaled bounds for this object
+      const bounds = boundsManager.getScaledBounds(fabricGroup, hopConfig.boundaryPadding);
       
       // Check for animation interactions first
       if (interactionsModule && canvas.animationInteractions && canvas.animationInteractions.length > 0) {
@@ -1897,11 +1961,11 @@ export function hopObjects(canvas, objs, { data = [], debugMode = false, preserv
       const newLeft = fabricGroup.left + (hopConfig.speed * fabricGroup.moveDirection);
       
       // Check if it would hit a canvas boundary
-      if (newLeft <= leftBound) {
-        fabricGroup.left = leftBound;
+      if (newLeft <= bounds.left) {
+        fabricGroup.left = bounds.left;
         fabricGroup.moveDirection = 1; // Switch to right when hitting left boundary
-      } else if (newLeft >= rightBound) {
-        fabricGroup.left = rightBound;
+      } else if (newLeft >= bounds.right) {
+        fabricGroup.left = bounds.right;
         fabricGroup.moveDirection = -1; // Switch to left when hitting right boundary
       } else {
         // Normal movement if no boundary hit
