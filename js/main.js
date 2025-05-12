@@ -85,8 +85,8 @@ function initializePanelCollapse() {
   
   if (animationCollapse && animationPanel) {
     animationCollapse.addEventListener('click', () => {
-      console.log('animationCollapse', animationCollapse);
       animationPanel.classList.toggle('collapsed');
+      animationPanel.classList.toggle('expanded');
       updateCanvasWrapperWidth();
     });
   }
@@ -94,6 +94,7 @@ function initializePanelCollapse() {
   if (interactionCollapse && interactionPanel) {
     interactionCollapse.addEventListener('click', () => {
       interactionPanel.classList.toggle('collapsed');
+      interactionPanel.classList.toggle('expanded');
       updateCanvasWrapperWidth();
     });
   }

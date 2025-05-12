@@ -15,8 +15,8 @@ export function resizeCanvas(canvas, baseWidth = 1000, baseHeight = 800) {
   const interactionPanel = document.getElementById('interactionPanel');
   
   // Calculate available space
-  const availableWidth = window.innerWidth - 
-    (animationPanel.offsetWidth + interactionPanel.offsetWidth);
+  const availableWidth = Math.max(1440 - (animationPanel.offsetWidth + interactionPanel.offsetWidth), 
+    window.innerWidth - (animationPanel.offsetWidth + interactionPanel.offsetWidth));
   const availableHeight = window.innerHeight - 
     (toolbar.offsetHeight + 100); // 100px for margins and header
   

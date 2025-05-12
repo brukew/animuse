@@ -12,6 +12,8 @@ body {
   margin: 0;
   font-family: 'Inter', 'Poppins', 'Segoe UI', sans-serif;
   color: var(--text-dark);
+  min-width: 1440px; /* Minimum width to ensure proper layout */
+  overflow-x: auto; /* Allow horizontal scrolling if needed */
 }
 
 .brand-heading {
@@ -28,6 +30,8 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   margin: 15px;
+  position: relative;
+  z-index: 1;
 }
 
 #toolbar label {
@@ -90,11 +94,11 @@ body {
   justify-content: center;
   align-items: center;
   position: relative;
-  z-index: 0;
+  z-index: 1;
   width: calc(100% - 480px); /* Account for both panels (240px each) */
   height: calc(100vh - 150px);
-  overflow: hidden;
-  padding: 15px;
+  overflow: visible; /* Changed from hidden to visible to show shadows */
+  padding: 20px; /* Increased padding to ensure shadows are visible */
   margin: 0 auto; /* Center the wrapper */
 }
 
@@ -104,8 +108,8 @@ canvas {
   box-shadow: var(--shadow);
   cursor: crosshair;
   touch-action: none;
-  max-width: 100%;
-  max-height: 100%;
+  /* max-width: calc(100% - 40px); Account for wrapper padding */
+  max-height: calc(100% - 40px); /* Account for wrapper padding */
   object-fit: contain;
 }
 
@@ -145,11 +149,11 @@ button:active {
   top: 0;
   bottom: 0;
   width: 240px;
-  background: var(--panel-bg);
+  background: white;
   box-shadow: var(--shadow);
   overflow-y: auto;
   padding: 10px;
-  z-index: 1;
+  z-index: 2;
   transition: transform 0.3s ease;
 }
 
@@ -175,7 +179,7 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 3; /* Increased z-index to appear above panels */
   transition: all 0.3s ease;
   transform: translateY(-50%);
 }
@@ -367,7 +371,7 @@ button:active {
 }
 
 /* Media query for responsive collapse */
-@media (max-width: 1200px) {
+@media (max-width: 1440px) {
   #animationPanel,
   #interactionPanel {
     width: 200px;
@@ -375,6 +379,72 @@ button:active {
   
   #canvasWrapper {
     width: calc(100% - 400px);
+  }
+
+  /* Auto-collapse panels on smaller screens */
+  #animationPanel {
+    transform: translateX(-100%);
+  }
+  
+  #interactionPanel {
+    transform: translateX(100%);
+  }
+
+  /* Position collapse buttons when panels are auto-collapsed */
+  .animation-collapse {
+    left: 0;
+  }
+
+  .interaction-collapse {
+    right: 0;
+  }
+
+  /* Update arrow directions for collapsed state */
+  .animation-collapse::before {
+    border-right-color: transparent;
+    border-left-color: #666;
+    margin-right: 0;
+    margin-left: 2px;
+  }
+
+  .interaction-collapse::before {
+    border-left-color: transparent;
+    border-right-color: #666;
+    margin-left: 0;
+    margin-right: 2px;
+  }
+
+  /* Allow panels to be expanded */
+  #animationPanel.expanded {
+    transform: translateX(0);
+  }
+  
+  #interactionPanel.expanded {
+    transform: translateX(0);
+  }
+
+  /* Update button positions when panels are expanded */
+  #animationPanel.expanded ~ .animation-collapse {
+    left: 200px;
+  }
+
+  #interactionPanel.expanded ~ .interaction-collapse {
+    right: 200px;
+  }
+
+  /* Update arrow directions for expanded state */
+  #animationPanel.expanded ~ .animation-collapse::before {
+    border-right-color: #666;
+    border-left-color: transparent;
+    margin-right: 2px;
+    margin-left: 0;
+  }
+
+  #interactionPanel.expanded ~ .interaction-collapse::before {
+    border-left-color: #666;
+    border-right-color: transparent;
+    margin-left: 2px;
+    margin-right: 0;
   }
 }
 
