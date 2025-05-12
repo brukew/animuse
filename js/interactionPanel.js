@@ -447,10 +447,6 @@ function createInteractionsView(canvas) {
         <select id="relationshipSelect">
           <option value="avoid">Avoid</option>
           <option value="orbit">Orbit</option>
-          <option value="triggers">Triggers</option>
-          <option value="follows">Follows</option>
-          <option value="controls">Controls</option>
-          <option value="affects">Affects</option>
         </select>
       </div>
       <div class="input-group">

@@ -74,6 +74,8 @@ window.addEventListener('load', () => {
     }
     speechEnabled = !speechEnabled;
   });
+  
+  initializeHelpOverlay();
 });
 
 // Panel collapse functionality
@@ -112,4 +114,33 @@ function updateCanvasWrapperWidth() {
   
   // Log for debugging
   console.log('Canvas wrapper width updated:', canvasWrapper.style.width);
+}
+
+// Initialize help overlay functionality
+function initializeHelpOverlay() {
+  const helpButton = document.querySelector('.help-button');
+  const helpOverlay = document.querySelector('.help-overlay');
+  const helpClose = document.querySelector('.help-close');
+
+  helpButton.addEventListener('click', () => {
+    helpOverlay.classList.add('visible');
+  });
+
+  helpClose.addEventListener('click', () => {
+    helpOverlay.classList.remove('visible');
+  });
+
+  // Close overlay when clicking outside the content
+  helpOverlay.addEventListener('click', (e) => {
+    if (e.target === helpOverlay) {
+      helpOverlay.classList.remove('visible');
+    }
+  });
+
+  // Close overlay with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && helpOverlay.classList.contains('visible')) {
+      helpOverlay.classList.remove('visible');
+    }
+  });
 }
