@@ -1,10 +1,101 @@
 import { StateHistory } from './stateHistory.js';
 import { renderAnimationPanel, updateSelectionState } from './animationPanel.js';
 
+/**
+ * Updates the canvas size based on the wrapper dimensions while maintaining aspect ratio
+ * @param {Object} canvas - The Fabric.js canvas instance
+ * @param {HTMLElement} wrapper - The canvas wrapper element
+ */
+function updateCanvasSize(canvas, wrapper) {
+  const wrapperWidth = wrapper.clientWidth;
+  const wrapperHeight = wrapper.clientHeight;
+  
+  // Calculate aspect ratio
+  const aspectRatio = 1000 / 800; // Original canvas dimensions
+  
+  let newWidth, newHeight;
+  
+  if (wrapperWidth / wrapperHeight > aspectRatio) {
+    // Wrapper is wider than canvas aspect ratio
+    newHeight = wrapperHeight;
+    newWidth = newHeight * aspectRatio;
+  } else {
+    // Wrapper is taller than canvas aspect ratio
+    newWidth = wrapperWidth;
+    newHeight = newWidth / aspectRatio;
+  }
+  
+  // Store original dimensions for scaling calculations
+  const originalWidth = canvas.getWidth();
+  const originalHeight = canvas.getHeight();
+  
+  // Update canvas size
+  canvas.setWidth(newWidth);
+  canvas.setHeight(newHeight);
+  
+  // Calculate scale factors
+  const scaleX = newWidth / originalWidth;
+  const scaleY = newHeight / originalHeight;
+  
+  // Scale all objects proportionally
+  canvas.getObjects().forEach(obj => {
+    // Get current position and dimensions
+    const currentLeft = obj.left;
+    const currentTop = obj.top;
+    const currentScaleX = obj.scaleX;
+    const currentScaleY = obj.scaleY;
+    
+    // Calculate new position and scale
+    const newLeft = currentLeft * scaleX;
+    const newTop = currentTop * scaleY;
+    const newScaleX = currentScaleX * scaleX;
+    const newScaleY = currentScaleY * scaleY;
+    
+    // Update object properties
+    obj.set({
+      left: newLeft,
+      top: newTop,
+      scaleX: newScaleX,
+      scaleY: newScaleY
+    });
+    
+    // Ensure object coordinates are updated
+    obj.setCoords();
+  });
+  
+  // Update viewport transform
+  canvas.setViewportTransform([
+    scaleX, 0,
+    0, scaleY,
+    0, 0
+  ]);
+  
+  // Force a render
+  canvas.requestRenderAll();
+}
+
 export function setupCanvas(id) {
   const canvas = new fabric.Canvas(id, { 
-    preserveObjectStacking: true // preserve manual object stacking
+    preserveObjectStacking: true, // preserve manual object stacking
+    enableRetinaScaling: true // Enable retina scaling for better quality
   });
+  
+  // Get the canvas wrapper element
+  const wrapper = document.getElementById('canvasWrapper');
+  
+  // Set initial canvas size
+  updateCanvasSize(canvas, wrapper);
+  
+  // Add resize handler with debounce
+  let resizeTimeout;
+  const resizeHandler = () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      updateCanvasSize(canvas, wrapper);
+    }, 100); // Debounce resize events
+  };
+  
+  window.addEventListener('resize', resizeHandler);
   
   // Track object creation order using incrementing counter
   let objectCreationCounter = 0;
@@ -47,6 +138,12 @@ export function setupCanvas(id) {
 
   const history = new StateHistory(canvas);
   canvas.history = history;
+
+  // Add cleanup function to remove event listeners
+  canvas.dispose = function() {
+    window.removeEventListener('resize', resizeHandler);
+    gsap.ticker.remove(canvas.requestRenderAll);
+  };
 
   canvas.on('path:created', () => setTimeout(() => history.saveState(), 20));
 

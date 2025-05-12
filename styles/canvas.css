@@ -59,7 +59,9 @@ canvas {
   box-shadow: var(--shadow);
   cursor: crosshair;
   touch-action: none;
-
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 #canvasWrapper {
@@ -69,6 +71,12 @@ canvas {
   align-items: center;
   position: relative;
   z-index: 0;
+  width: 100%;
+  height: calc(100vh - 200px); /* Account for toolbar and margins */
+  min-height: 400px; /* Minimum height to ensure usability */
+  padding: 20px;
+  box-sizing: border-box;
+  margin: 0 240px; /* Account for panel widths */
 }
 
 button {
@@ -101,34 +109,27 @@ button:active {
   -webkit-text-fill-color: transparent;
 }
 
-#animationPanel {
-  position: absolute;
-  left: 0;
-  top: 0px;
-  bottom: 0;
-  width: 240px;
-  background: #f5f5f5;
-  border-right: 1px solid #ccc;
-  overflow-y: auto;
-  padding: 10px;
-}
-
-#interactionPanel {
-  position: absolute;
-  right: 0;
-  top: 0px;
-  bottom: 0;
-  width: 240px;
-  background: #f5f5f5;
-  border-left: 1px solid #ccc;
-  overflow-y: auto;
-  padding: 10px;
-}
-
 #animationPanel,
 #interactionPanel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 240px;
   background: var(--panel-bg);
   box-shadow: var(--shadow);
+  overflow-y: auto;
+  padding: 10px;
+  z-index: 1;
+}
+
+#animationPanel {
+  left: 0;
+  border-right: 1px solid #ccc;
+}
+
+#interactionPanel {
+  right: 0;
+  border-left: 1px solid #ccc;
 }
 
 .animation-entry {
@@ -231,4 +232,27 @@ button:active {
   color: white;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Add media queries for responsive design */
+@media (max-width: 1200px) {
+  #animationPanel,
+  #interactionPanel {
+    width: 200px;
+  }
+  
+  #canvasWrapper {
+    margin: 0 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  #animationPanel,
+  #interactionPanel {
+    width: 180px;
+  }
+  
+  #canvasWrapper {
+    margin: 0 180px;
+  }
 }
