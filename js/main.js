@@ -44,8 +44,8 @@ window.addEventListener('load', () => {
   const speechToggleBtn = document.createElement('button');
   speechToggleBtn.id = 'speechToggleBtn';
   speechToggleBtn.className = 'speech-toggle-btn';
-  speechToggleBtn.innerHTML = '🎤 Enable Voice';
-  speechToggleBtn.title = 'Toggle voice commands';
+  speechToggleBtn.innerHTML = 'Enable Voice';
+  speechToggleBtn.title = 'Toggle Voice Input (Ctrl/Cmd + V)';
   
   // Add to toolbar
   const toolbar_div = document.getElementById('toolbar');
@@ -58,11 +58,11 @@ window.addEventListener('load', () => {
   speechToggleBtn.addEventListener('click', () => {
     if (speechEnabled) {
       speechController.stop();
-      speechToggleBtn.innerHTML = '🎤 Enable Voice';
+      speechToggleBtn.innerHTML = 'Enable Voice';
       speechToggleBtn.classList.remove('active');
     } else {
       speechController.start();
-      speechToggleBtn.innerHTML = '🎤 Disable Voice';
+      speechToggleBtn.innerHTML = 'Disable Voice';
       speechToggleBtn.classList.add('active');
     }
     speechEnabled = !speechEnabled;

@@ -24,7 +24,6 @@ export class Toolbar {
     this.undoBtn = get('undoBtn');
     this.redoBtn = get('redoBtn');
     this.pauseBtn = get('pauseBtn');
-
     this.clearActive = () => [this.drawBtn, this.selectBtn].forEach(b => b.classList.remove('active'));
 
     // Add keyboard shortcuts
@@ -59,6 +58,14 @@ export class Toolbar {
             e.preventDefault();
             this.toggleAnimations();
             break;
+          case 'v':
+            e.preventDefault();
+            // Toggle voice input
+            const voiceBtn = document.getElementById('speechToggleBtn');
+            if (voiceBtn) {
+              voiceBtn.click();
+            }
+            break;
           case 'z':
             e.preventDefault();
             if (e.shiftKey) {
@@ -75,10 +82,7 @@ export class Toolbar {
             break;
           case 'y':
             e.preventDefault();
-            // Ctrl/Cmd + Y as alternative for redo
-            if (!this.redoBtn.disabled) {
-              this.canvas.history.redo();
-            }
+            // Remove Cmd/Ctrl + Y as redo shortcut
             break;
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {

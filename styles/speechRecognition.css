@@ -1,7 +1,7 @@
 /* Speech Recognition Styles */
 
 /* Toggle button */
-.speech-toggle-btn {
+#toolbar .buttons .speech-toggle-btn {
   background-color: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -10,9 +10,13 @@
   transition: all 0.2s ease;
 }
 
-.speech-toggle-btn.active {
-  background-color: #e74c3c;
-  color: white;
+#toolbar .buttons .speech-toggle-btn:hover {
+  background-color: #e0e0e0;
+}
+
+#toolbar .buttons .speech-toggle-btn.active {
+  background-color: #e74c3c !important;
+  color: white !important;
 }
 
 /* Speech status indicator */
@@ -38,6 +42,7 @@
 
 .speech-status.active {
   background-color: rgba(231, 76, 60, 0.9);
+  animation: pulse 2s infinite;
 }
 
 .speech-status .status-icon {

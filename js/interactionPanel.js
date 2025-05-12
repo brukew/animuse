@@ -1,6 +1,3 @@
-// Import required dependencies
-import { renderAnimationPanel } from './animationPanel.js';
-
 /**
  * Gets the maximum z-index for a given animation
  * @param {Object} anim - The animation object
