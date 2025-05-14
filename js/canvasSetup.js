@@ -50,7 +50,6 @@ export function setupCanvas(id) {
 
   // Add cleanup function to remove event listeners
   canvas.dispose = function() {
-    window.removeEventListener('resize', resizeHandler);
     gsap.ticker.remove(canvas.requestRenderAll);
   };
 
