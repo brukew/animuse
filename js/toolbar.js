@@ -223,6 +223,10 @@ export class Toolbar {
     this.colorPicker.addEventListener('change', e => pencil.color = e.target.value);
     this.sizePicker.addEventListener('input', e => pencil.width = +e.target.value);
 
+    // Center the pencil brush with cursor
+    pencil.decimate = 0; // Disable decimation for smoother lines
+    pencil.strokeOffset = { x: 0, y: 0 }; // Center the stroke with cursor
+
     this.setDrawMode();
   }
 
@@ -234,6 +238,11 @@ export class Toolbar {
     pencil.color = this.colorPicker.value;
     pencil.width = +this.sizePicker.value;
     pencil.globalCompositeOperation = 'source-over';
+    
+    // Center the stroke with cursor
+    pencil.strokeLineCap = 'round';
+    pencil.strokeLineJoin = 'round';
+    
     canvas.freeDrawingBrush = pencil;
     canvas.defaultCursor = 'crosshair';
     this.clearActive();
