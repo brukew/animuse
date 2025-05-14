@@ -1,6 +1,5 @@
 import { setupCanvas } from './canvasSetup.js';
 import { Toolbar, deleteSel } from './toolbar.js';
-import { enableGestures } from './gestures.js';
 import { renderInteractionPanel } from './interactionPanel.js';
 import { SpeechController } from './speechRecognition.js';
 import { LLMController } from './llmController.js';
@@ -26,7 +25,6 @@ window.addEventListener('load', () => {
   const toolbar = new Toolbar(canvas);
   // Expose the toolbar for group button updates
   window.toolbar = toolbar;
-  enableGestures(canvas);
   
   // Initialize canvas resize functionality
   initCanvasResize(canvas);
@@ -110,7 +108,7 @@ function updateCanvasWrapperWidth() {
   const leftWidth = leftPanel.classList.contains('collapsed') ? 24 : leftPanel.offsetWidth;
   const rightWidth = rightPanel.classList.contains('collapsed') ? 24 : rightPanel.offsetWidth;
   
-  canvasWrapper.style.width = `calc(100% - ${leftWidth + rightWidth}px)`;
+  canvasWrapper.style.width = 'calc(100% - ${leftWidth + rightWidth}px)';
   
   // Log for debugging
   console.log('Canvas wrapper width updated:', canvasWrapper.style.width);
